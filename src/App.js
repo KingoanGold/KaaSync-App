@@ -15,7 +15,7 @@ import {
   MessageCircle, Filter, Music, CheckCircle2, 
   Shuffle, RefreshCw, Edit2, Timer, Gift, Zap, 
   Trash2, Edit3, FolderPlus, BellRing, HeartHandshake,
-  CalendarHeart, Send, LogIn, MessageSquare
+  CalendarHeart, Send, LogIn, MessageSquare, Smartphone
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ULTRA-SÉCURISÉE (ANTI-CRASH) ---
@@ -273,7 +273,7 @@ const POSITIONS_DATA = [
   { n: "L'Angle droit", c: "Angles & Tweaks", d: 2, s: 3, desc: "Le receveur sur le dos replie ses genoux à 90 degrés et pose ses mollets sur les épaules de l'actif, formant un angle droit parfait.", v: "Variante : L'actif masse les mollets de son partenaire pendant l'action." },
   { n: "La Compression", c: "Angles & Tweaks", d: 3, s: 4, desc: "Quelle que soit la position, le receveur contracte fortement ses muscles pelviens et serre ses cuisses pour créer une sensation d'étreinte maximale.", v: "Variante : Rythmez les contractions pelviennes (Kegel) sur les mouvements de va-et-vient." },
   { n: "L'Expansion", c: "Angles & Tweaks", d: 2, s: 2, desc: "L'actif recule presque jusqu'à sortir complètement à chaque mouvement, avant de revenir profondément. Joue sur la frustration et l'anticipation.", v: "Variante : Marquez une pause d'une seconde lorsque vous êtes presque sorti, avant la pénétration." },
-  { n: "La Méditation sexuelle", c: "Sensorielles", d: 1, s: 3, desc: "Une fois emboîtés, les deux partenaires cessent tout mouvement pendant plusieurs minutes. Fermez les yeux et concentrez-vous uniquement sur les micro-pulsations de vos corps.", v: "Variante : Synchronisez votre respiration : l'un inspire quand l'autre expire." },
+  { n: "La Méditation sexuelle", c: "Sensorielles", d: 1, s: 3, desc: "Une fois emboîtés, les deux partenairesered cessent tout mouvement pendant plusieurs minutes. Fermez les yeux et concentrez-vous uniquement sur les micro-pulsations de vos corps.", v: "Variante : Synchronisez votre respiration : l'un inspire quand l'autre expire." },
   { n: "Le Slow-motion", c: "Sensorielles", d: 2, s: 4, desc: "Effectuez l'acte avec une lenteur exagérée, comme au ralenti. Chaque va-et-vient doit prendre plusieurs secondes. Idéal pour faire monter la tension.", v: "Variante : Combinez le ralenti avec un bandeau sur les yeux du receveur." },
   { n: "La Respiration synchronisée", c: "Sensorielles", d: 1, s: 2, desc: "Inspirez et expirez exactement en même temps, ventre contre ventre. Cela crée une puissante résonance énergétique et émotionnelle.", v: "Variante : Accélérez progressivement le rythme de la respiration pour faire monter l'excitation." },
   { n: "Le Contact visuel total", c: "Sensorielles", d: 1, s: 4, desc: "Interdiction formelle de fermer les yeux ou de détourner le regard, de la première caresse jusqu'à l'orgasme. Très intense et vulnérable.", v: "Variante : Ne clignez des yeux que lorsque votre partenaire le fait." },
@@ -310,6 +310,7 @@ export default function App() {
   const [isCreating, setIsCreating] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showInstallTutorial, setShowInstallTutorial] = useState(false);
   
   // Outils & Filtres & Tri
   const [searchQuery, setSearchQuery] = useState('');
@@ -1025,6 +1026,17 @@ export default function App() {
              ) : (
                <div className="space-y-6">
                  
+                 {/* NOUVEAU: RAPPEL DU CODE DUO */}
+                 <div className="bg-slate-900 border border-slate-800 px-6 py-4 rounded-[2rem] flex items-center justify-between shadow-lg">
+                   <div>
+                     <span className="text-[10px] font-black text-slate-500 uppercase block mb-1">Mon Code Unique</span>
+                     <div className="text-lg font-mono font-black text-white tracking-widest">{userData?.pairCode}</div>
+                   </div>
+                   <div className="text-[10px] font-bold uppercase text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                     En Duo
+                   </div>
+                 </div>
+
                  {/* COMPTEUR INTIME & SIGNAL */}
                  <div className="grid grid-cols-2 gap-4">
                    <div className="bg-slate-900 border border-slate-800 p-5 rounded-[2rem] text-center flex flex-col justify-center items-center">
@@ -1167,13 +1179,13 @@ export default function App() {
                <h2 className="text-2xl font-black text-white mb-2">{userData?.pseudo || 'Anonyme'}</h2>
                <p className="text-slate-400 text-sm text-center max-w-xs">{userData?.bio || 'Explorateur de sensations...'}</p>
                
-               <div className="flex flex-col items-center gap-3 mt-5">
+               <div className="flex flex-col w-full max-w-xs items-center gap-3 mt-6">
                  <button 
                    onClick={() => {
                      setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' });
                      setIsEditingProfile(true);
                    }}
-                   className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-full text-xs font-bold transition border border-slate-700 hover:bg-slate-700"
+                   className="flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-3 rounded-full text-xs font-bold transition border border-slate-700 hover:bg-slate-700 w-full"
                  >
                    <Edit2 size={14} /> Modifier mon profil
                  </button>
@@ -1182,11 +1194,19 @@ export default function App() {
                  {user?.isAnonymous && (
                    <button 
                      onClick={handleGoogleLogin}
-                     className="flex items-center gap-2 bg-white text-slate-900 px-5 py-2.5 rounded-full text-xs font-black transition hover:bg-slate-200 shadow-lg shadow-white/10"
+                     className="flex items-center justify-center gap-2 bg-white text-slate-900 px-5 py-3 rounded-full text-xs font-black transition hover:bg-slate-200 shadow-lg shadow-white/10 w-full"
                    >
                      <LogIn size={14} /> Sauvegarder avec Google
                    </button>
                  )}
+
+                 {/* NOUVEAU: BOUTON INSTALLATION */}
+                 <button 
+                   onClick={() => setShowInstallTutorial(true)}
+                   className="flex items-center justify-center gap-2 bg-indigo-600/20 text-indigo-400 px-5 py-3 rounded-full text-xs font-black transition border border-indigo-500/50 hover:bg-indigo-600/40 shadow-lg w-full"
+                 >
+                   <Smartphone size={14} /> Ajouter à l'écran d'accueil
+                 </button>
                </div>
             </div>
 
@@ -1486,6 +1506,48 @@ export default function App() {
           <div className="flex-1 overflow-y-auto px-6 py-8 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
              <h2 className="text-3xl font-black text-white mb-6 leading-tight">{selectedTip.title}</h2>
              <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">{selectedTip.content}</div>
+          </div>
+        </div>
+      )}
+
+      {/* NOUVEAU: MODAL INSTALLATION ECRAN ACCUEIL */}
+      {showInstallTutorial && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
+          <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/90 backdrop-blur-xl z-10 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+            <button onClick={() => setShowInstallTutorial(false)} className="text-slate-400 p-2 bg-slate-900 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
+            <h2 className="font-black text-white tracking-tight">Installation</h2>
+            <div className="w-10"></div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-6 custom-scroll space-y-6" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-2 shadow-xl">
+              <img 
+                src="http://googleusercontent.com/generated_image_content/0" 
+                alt="Tutoriel d'installation sur écran d'accueil" 
+                className="w-full rounded-2xl" 
+              />
+            </div>
+            
+            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
+              <h3 className="text-base font-black text-white flex items-center gap-2">🍏 Pour iOS (iPhone)</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
+                <li>Ouvrez l'application <b>Safari</b> et allez sur <code>kama-sync.vercel.app</code></li>
+                <li>Appuyez sur l'icône <b>Partager</b> (le carré avec la flèche vers le haut) en bas de l'écran.</li>
+                <li>Faites défiler vers le bas et choisissez <b>Sur l'écran d'accueil</b>.</li>
+                <li>Appuyez sur <b>Ajouter</b>.</li>
+              </ol>
+            </div>
+
+            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
+              <h3 className="text-base font-black text-white flex items-center gap-2">🤖 Pour Android</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
+                <li>Ouvrez l'application <b>Chrome</b> et allez sur <code>kama-sync.vercel.app</code></li>
+                <li>Appuyez sur les <b>trois petits points</b> en haut à droite.</li>
+                <li>Sélectionnez <b>Ajouter à l'écran d'accueil</b> (ou Installer l'application).</li>
+                <li>Appuyez sur <b>Installer</b>.</li>
+              </ol>
+            </div>
           </div>
         </div>
       )}
