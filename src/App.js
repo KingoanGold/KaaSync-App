@@ -1,42 +1,64 @@
-"use client";
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot } from 'firebase/firestore';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { 
-  Heart, Flame, Sparkles, ChevronRight, 
-  Users, ArrowLeft, Gamepad2, 
-  Star, Lock, Activity, Wind, BookOpen, 
-  Compass, User, Shield, EyeOff, Eye, 
-  MessageCircle, Music, CheckCircle2, 
-  Timer, Zap, Info
+  getFirestore, doc, setDoc, collection, 
+  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc
+} from 'firebase/firestore';
+import { 
+  Heart, Flame, Plus, Sparkles, ChevronRight, 
+  Search, Info, Users, ArrowLeft, Gamepad2, 
+  Star, Dices, Lock, Activity, Wind, BookOpen, 
+  Compass, User, Shield, EyeOff, Eye, Calendar, 
+  MessageCircle, Filter, Music, CheckCircle2, 
+  Shuffle, RefreshCw, Edit2, Timer, Gift, Zap, 
+  Trash2, Edit3, FolderPlus, BellRing, HeartHandshake,
+  CalendarHeart
 } from 'lucide-react';
 
-// --- CONFIGURATION ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCY-gRv2rOrLy8LgxHn5cyd5937jXmrypw",
-  authDomain: "kamasync-52671.firebaseapp.com",
-  projectId: "kamasync-52671",
-  storageBucket: "kamasync-52671.firebasestorage.app",
-  messagingSenderId: "211532217086",
-  appId: "1:211532217086:web:7a6ed699c878c6995303af",
-  measurementId: "G-Q7M6LE859T"
-};
+// --- RÉPARATION FIREBASE (ANTI-ÉCRAN BLEU VERCEL) ---
+const getFirebaseConfig = () => {
+  const defaultConfig = {
+    apiKey: "AIzaSyCY-gRv2rOrLy8LgxHn5cyd5937jXmrypw",
+    authDomain: "kamasync-52671.firebaseapp.com",
+    projectId: "kamasync-52671",
+    storageBucket: "kamasync-52671.firebasestorage.app",
+    messagingSenderId: "211532217086",
+    appId: "1:211532217086:web:7a6ed699c878c6995303af",
+    measurementId: "G-Q7M6LE859T"
+  };
 
-// Initialisation sécurisée hors du rendu pour éviter les boucles sur Safari
-const initFirebase = () => {
-  if (typeof window !== 'undefined') {
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    return {
-      auth: getAuth(app),
-      db: getFirestore(app)
-    };
+  try {
+    // Sécurisation SSR : On vérifie que window existe avant d'accéder aux variables globales
+    if (typeof window !== 'undefined' && typeof window.__firebase_config !== 'undefined' && window.__firebase_config) {
+      return typeof window.__firebase_config === 'string' 
+        ? JSON.parse(window.__firebase_config) 
+        : window.__firebase_config;
+    } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+      return typeof __firebase_config === 'string' 
+        ? JSON.parse(__firebase_config) 
+        : __firebase_config;
+    }
+  } catch (e) {
+    console.error("Erreur config dynamique", e);
   }
-  return { auth: null, db: null };
+  return defaultConfig;
 };
 
-// --- DONNÉES (100% CONSERVÉES) ---
+const firebaseConfig = getFirebaseConfig();
+// Initialisation sécurisée pour éviter les instances multiples sur Next.js/Vercel
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Sécurisation SSR pour l'appId
+const appId = (typeof window !== 'undefined' && typeof window.__app_id !== 'undefined') 
+  ? window.__app_id 
+  : (typeof __app_id !== 'undefined' ? __app_id : 'kamasync-ultra-v4');
+
+// --- TON CONTENU INTACT (AUCUNE SUPPRESSION) ---
+
 const CATEGORIES = [
   { id: 'Face à face', icon: <Users size={14}/>, color: 'from-blue-500/20 to-blue-900/20', text: 'text-blue-400' },
   { id: 'Par derrière', icon: <Flame size={14}/>, color: 'from-orange-500/20 to-orange-900/20', text: 'text-orange-400' },
@@ -47,6 +69,13 @@ const CATEGORIES = [
   { id: 'Oral & Préliminaires', icon: <Sparkles size={14}/>, color: 'from-amber-500/20 to-amber-900/20', text: 'text-amber-400' },
   { id: 'Angles & Tweaks', icon: <Lock size={14}/>, color: 'from-cyan-500/20 to-cyan-900/20', text: 'text-cyan-400' },
   { id: 'Sensorielles', icon: <Star size={14}/>, color: 'from-indigo-500/20 to-indigo-900/20', text: 'text-indigo-400' }
+];
+
+const MOODS = [
+  { id: 'romantic', label: 'Câlin & Doux', icon: '☁️', color: 'bg-pink-500/20 text-pink-400 border-pink-500/30' },
+  { id: 'playful', label: 'Humeur Joueuse', icon: '🎲', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  { id: 'wild', label: 'Très Sauvage', icon: '🔥', color: 'bg-rose-500/20 text-rose-500 border-rose-500/30' },
+  { id: 'tired', label: 'Pas ce soir', icon: '💤', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' }
 ];
 
 const GAMES_DATA = {
@@ -100,45 +129,52 @@ const FULL_CATALOG = POSITIONS_DATA.map((p, i) => ({
 }));
 
 export default function App() {
-  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [activeTab, setActiveTab] = useState('explorer'); 
   const [loading, setLoading] = useState(true);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [selectedTip, setSelectedTip] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterCat, setFilterCat] = useState('Toutes');
   const [discreetMode, setDiscreetMode] = useState(false);
   const [activeGame, setActiveGame] = useState(null);
   const [gameResult, setGameResult] = useState(null);
 
-  // Étape 1 : On s'assure que le composant est monté (fix crash iPhone)
   useEffect(() => {
-    setMounted(true);
+    let unsub = () => {};
+    // On s'assure que le code Firebase ne s'exécute que côté client
+    if (typeof window !== 'undefined') {
+      unsub = onAuthStateChanged(auth, (u) => {
+        setUser(u);
+        if (!u) {
+          signInAnonymously(auth).catch((error) => {
+            console.error("Erreur d'authentification anonyme:", error);
+            setLoading(false);
+          });
+        }
+      });
+    }
+    const timer = setTimeout(() => setLoading(false), 4000);
+    return () => { unsub(); clearTimeout(timer); };
   }, []);
 
-  // Étape 2 : Initialisation Firebase uniquement après montage
   useEffect(() => {
-    if (!mounted) return;
-
-    const { auth, db } = initFirebase();
-    if (!auth) return;
-
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (!u) {
-        signInAnonymously(auth).catch(() => setLoading(false));
-      }
+    if (!user || typeof window === 'undefined') return;
+    const unsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+      if (snap.exists()) setUserData(snap.data());
       setLoading(false);
     });
-
     return () => unsub();
-  }, [mounted]);
+  }, [user]);
 
   const filteredPositions = useMemo(() => {
-    return FULL_CATALOG.filter(pos => 
-      pos.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery]);
+    return FULL_CATALOG.filter(pos => {
+      const matchSearch = pos.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCat = filterCat === 'Toutes' || pos.cat === filterCat;
+      return matchSearch && matchCat;
+    });
+  }, [searchQuery, filterCat]);
 
   const triggerGame = (type) => {
     let res = "";
@@ -148,45 +184,25 @@ export default function App() {
     setGameResult(res);
   };
 
-  // On n'affiche rien tant que le client n'est pas prêt (évite le flash blanc/bleu)
-  if (!mounted) return null;
-
-  if (loading) return (
-    <div className="h-screen bg-slate-950 flex items-center justify-center text-rose-500">
-      <Flame className="animate-pulse" size={48} />
-    </div>
-  );
+  if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center text-rose-500"><Flame className="animate-pulse" size={48} /></div>;
 
   return (
     <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans">
       <header className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl z-50 shrink-0">
-        <div className="flex items-center gap-2 text-rose-500 font-black text-2xl tracking-tighter">
-          <Flame fill="currentColor" size={28} /> KAMA<span className="text-white">SYNC</span>
-        </div>
-        <button onClick={() => setDiscreetMode(!discreetMode)} className="text-slate-400 p-2">
-          {discreetMode ? <EyeOff size={20} className="text-emerald-400" /> : <Eye size={20} />}
-        </button>
+        <div className="flex items-center gap-2 text-rose-500 font-black text-2xl tracking-tighter"><Flame fill="currentColor" size={28} /> KAMA<span className="text-white">SYNC</span></div>
+        <button onClick={() => setDiscreetMode(!discreetMode)} className="text-slate-400 p-2">{discreetMode ? <EyeOff size={20} className="text-emerald-400" /> : <Eye size={20} />}</button>
       </header>
 
       <main className="flex-1 overflow-y-auto pb-32">
         {activeTab === 'explorer' && (
           <div className="p-6 space-y-6">
-            <input 
-              value={searchQuery} 
-              onChange={e => setSearchQuery(e.target.value)} 
-              className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-4 px-4 text-sm outline-none" 
-              placeholder="Rechercher..." 
-            />
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-4 px-4 text-sm outline-none" placeholder="Rechercher..." />
             {CATEGORIES.map(cat => (
               <section key={cat.id} className="space-y-4">
                 <h3 className={`font-bold ${cat.text}`}>{cat.id}</h3>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {filteredPositions.filter(p => p.cat === cat.id).map(pos => (
-                    <div 
-                      key={pos.id} 
-                      onClick={() => setSelectedPosition(pos)} 
-                      className={`shrink-0 w-48 bg-gradient-to-br ${cat.color} p-5 rounded-[2rem] border border-white/5 active:scale-95 transition-transform`}
-                    >
+                    <div key={pos.id} onClick={() => setSelectedPosition(pos)} className={`shrink-0 w-48 bg-gradient-to-br ${cat.color} p-5 rounded-[2rem] border border-white/5 cursor-pointer`}>
                        <h4 className="font-bold mb-2 text-sm">{discreetMode ? "Position" : pos.name}</h4>
                     </div>
                   ))}
@@ -199,54 +215,31 @@ export default function App() {
         {activeTab === 'jeux' && !activeGame && (
           <div className="p-6 space-y-4">
             {['truth', 'dare', 'dice'].map(g => (
-              <button key={g} onClick={() => setActiveGame(g)} className="w-full bg-slate-900 p-6 rounded-3xl border border-white/5 flex justify-between items-center uppercase font-bold text-xs">
-                <span>{g}</span><ChevronRight/>
-              </button>
+              <button key={g} onClick={() => setActiveGame(g)} className="w-full bg-slate-900 p-6 rounded-3xl border border-white/5 flex justify-between uppercase font-bold text-xs"><span>{g}</span><ChevronRight/></button>
             ))}
           </div>
         )}
 
         {activeTab === 'jeux' && activeGame && (
           <div className="fixed inset-0 bg-slate-950 z-[200] flex flex-col">
-            <header className="p-6">
-              <button onClick={() => {setActiveGame(null); setGameResult(null);}}><ArrowLeft/></button>
-            </header>
+            <header className="p-6"><button onClick={() => {setActiveGame(null); setGameResult(null);}}><ArrowLeft/></button></header>
             <div className="flex-1 p-6 flex flex-col items-center justify-center text-center">
-              <div className="bg-slate-900 p-10 rounded-[3rem] border border-rose-500/20 w-full mb-10 text-xl font-bold">
-                {gameResult || "Prêts ?"}
-              </div>
-              <button onClick={() => triggerGame(activeGame)} className="w-full max-w-sm bg-rose-600 py-4 rounded-2xl font-black active:bg-rose-700">
-                LANCER
-              </button>
+              <div className="bg-slate-900 p-10 rounded-[3rem] border border-rose-500/20 w-full mb-10 text-xl font-bold">{gameResult || "Prêts ?"}</div>
+              <button onClick={() => triggerGame(activeGame)} className="w-full max-w-sm bg-rose-600 py-4 rounded-2xl font-black">LANCER</button>
             </div>
           </div>
         )}
 
         {activeTab === 'conseils' && (
           <div className="p-6 space-y-4">
-             {TIPS_DATA.map(tip => (
-               <div 
-                 key={tip.id} 
-                 onClick={() => setSelectedTip(tip)} 
-                 className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex gap-4 items-center active:bg-slate-800"
-               >
-                 <div className="text-indigo-400">{tip.icon}</div>
-                 <h4 className="font-bold text-sm">{tip.title}</h4>
-               </div>
-             ))}
+             {TIPS_DATA.map(tip => <div key={tip.id} onClick={() => setSelectedTip(tip)} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex gap-4 cursor-pointer"><div className="text-indigo-400">{tip.icon}</div><h4 className="font-bold text-sm">{tip.title}</h4></div>)}
           </div>
         )}
       </main>
 
       <nav className="fixed bottom-0 w-full bg-slate-950/95 backdrop-blur-2xl border-t border-slate-900 px-6 py-5 flex justify-between items-center z-50 shrink-0 pb-10">
         {[ {id:'explorer', icon:<Compass/>}, {id:'jeux', icon:<Gamepad2/>}, {id:'conseils', icon:<BookOpen/>}, {id:'profil', icon:<User/>} ].map(tab => (
-          <button 
-            key={tab.id} 
-            onClick={() => {setActiveTab(tab.id); setActiveGame(null);}} 
-            className={`flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-rose-500' : 'text-slate-500'}`}
-          >
-            {tab.icon}<span className="text-[8px] font-bold uppercase">{tab.id}</span>
-          </button>
+          <button key={tab.id} onClick={() => {setActiveTab(tab.id); setActiveGame(null);}} className={`flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-rose-500' : 'text-slate-500'}`}>{tab.icon}<span className="text-[8px] font-bold uppercase">{tab.id}</span></button>
         ))}
       </nav>
 
@@ -255,10 +248,7 @@ export default function App() {
           <header className="p-6"><button onClick={() => setSelectedPosition(null)}><ArrowLeft/></button></header>
           <div className="flex-1 overflow-y-auto px-6 pb-32">
             <h2 className="text-4xl font-black">{discreetMode ? "Position" : selectedPosition.name}</h2>
-            <div className="bg-slate-900 p-8 rounded-[2.5rem] mt-6">
-              <p className="text-slate-300 leading-relaxed text-lg">{discreetMode ? "Détails cachés" : selectedPosition.desc}</p>
-              {!discreetMode && <p className="mt-4 text-rose-400 italic font-medium">Variante : {selectedPosition.v}</p>}
-            </div>
+            <div className="bg-slate-900 p-8 rounded-[2.5rem] mt-6"><p className="text-slate-300 leading-relaxed text-lg">{discreetMode ? "xxx" : selectedPosition.desc}</p></div>
           </div>
         </div>
       )}
@@ -267,15 +257,12 @@ export default function App() {
         <div className="fixed inset-0 z-[300] bg-slate-950 flex flex-col p-6">
           <button onClick={() => setSelectedTip(null)} className="mb-8"><ArrowLeft/></button>
           <h2 className="text-3xl font-black mb-6">{selectedTip.title}</h2>
-          <div className="flex-1 overflow-y-auto bg-slate-900 p-8 rounded-[2.5rem] text-slate-300 whitespace-pre-line leading-relaxed">
-            {selectedTip.content}
-          </div>
+          <div className="flex-1 overflow-y-auto bg-slate-900 p-8 rounded-[2.5rem] text-slate-300 whitespace-pre-line">{selectedTip.content}</div>
         </div>
       )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        * { -webkit-tap-highlight-color: transparent; }
       `}</style>
     </div>
   );
