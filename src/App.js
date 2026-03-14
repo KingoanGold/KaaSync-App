@@ -1,61 +1,56 @@
+"use client";
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { 
-  getFirestore, doc, setDoc, collection, 
-  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc
+  getFirestore, doc, onSnapshot 
 } from 'firebase/firestore';
 import { 
-  Heart, Flame, Plus, Sparkles, ChevronRight, 
-  Search, Info, Users, ArrowLeft, Gamepad2, 
-  Star, Dices, Lock, Activity, Wind, BookOpen, 
-  Compass, User, Shield, EyeOff, Eye, Calendar, 
-  MessageCircle, Filter, Music, CheckCircle2, 
-  Shuffle, RefreshCw, Edit2, Timer, Gift, Zap, 
-  Trash2, Edit3, FolderPlus, BellRing, HeartHandshake,
-  CalendarHeart
+  Heart, Flame, Sparkles, ChevronRight, 
+  Users, ArrowLeft, Gamepad2, 
+  Star, Lock, Activity, Wind, BookOpen, 
+  Compass, User, Shield, EyeOff, Eye, 
+  MessageCircle, Music, CheckCircle2, 
+  Timer, Zap, Info
 } from 'lucide-react';
 
-// --- RÉPARATION FIREBASE (ANTI-ÉCRAN BLEU VERCEL) ---
-const getFirebaseConfig = () => {
-  const defaultConfig = {
-    apiKey: "AIzaSyCY-gRv2rOrLy8LgxHn5cyd5937jXmrypw",
-    authDomain: "kamasync-52671.firebaseapp.com",
-    projectId: "kamasync-52671",
-    storageBucket: "kamasync-52671.firebasestorage.app",
-    messagingSenderId: "211532217086",
-    appId: "1:211532217086:web:7a6ed699c878c6995303af",
-    measurementId: "G-Q7M6LE859T"
+// --- RÉPARATION FIREBASE POUR VERCEL ---
+let app, auth, db;
+
+if (typeof window !== 'undefined') {
+  const getFirebaseConfig = () => {
+    const defaultConfig = {
+      apiKey: "AIzaSyCY-gRv2rOrLy8LgxHn5cyd5937jXmrypw",
+      authDomain: "kamasync-52671.firebaseapp.com",
+      projectId: "kamasync-52671",
+      storageBucket: "kamasync-52671.firebasestorage.app",
+      messagingSenderId: "211532217086",
+      appId: "1:211532217086:web:7a6ed699c878c6995303af",
+      measurementId: "G-Q7M6LE859T"
+    };
+
+    try {
+      if (typeof window.__firebase_config !== 'undefined' && window.__firebase_config) {
+        return typeof window.__firebase_config === 'string' 
+          ? JSON.parse(window.__firebase_config) 
+          : window.__firebase_config;
+      } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        return typeof __firebase_config === 'string' 
+          ? JSON.parse(__firebase_config) 
+          : __firebase_config;
+      }
+    } catch (e) {
+      console.error("Erreur config dynamique", e);
+    }
+    return defaultConfig;
   };
 
-  try {
-    // Sécurisation SSR : On vérifie que window existe avant d'accéder aux variables globales
-    if (typeof window !== 'undefined' && typeof window.__firebase_config !== 'undefined' && window.__firebase_config) {
-      return typeof window.__firebase_config === 'string' 
-        ? JSON.parse(window.__firebase_config) 
-        : window.__firebase_config;
-    } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-      return typeof __firebase_config === 'string' 
-        ? JSON.parse(__firebase_config) 
-        : __firebase_config;
-    }
-  } catch (e) {
-    console.error("Erreur config dynamique", e);
-  }
-  return defaultConfig;
-};
-
-const firebaseConfig = getFirebaseConfig();
-// Initialisation sécurisée pour éviter les instances multiples sur Next.js/Vercel
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// Sécurisation SSR pour l'appId
-const appId = (typeof window !== 'undefined' && typeof window.__app_id !== 'undefined') 
-  ? window.__app_id 
-  : (typeof __app_id !== 'undefined' ? __app_id : 'kamasync-ultra-v4');
+  const firebaseConfig = getFirebaseConfig();
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
 
 // --- TON CONTENU INTACT (AUCUNE SUPPRESSION) ---
 
@@ -69,13 +64,6 @@ const CATEGORIES = [
   { id: 'Oral & Préliminaires', icon: <Sparkles size={14}/>, color: 'from-amber-500/20 to-amber-900/20', text: 'text-amber-400' },
   { id: 'Angles & Tweaks', icon: <Lock size={14}/>, color: 'from-cyan-500/20 to-cyan-900/20', text: 'text-cyan-400' },
   { id: 'Sensorielles', icon: <Star size={14}/>, color: 'from-indigo-500/20 to-indigo-900/20', text: 'text-indigo-400' }
-];
-
-const MOODS = [
-  { id: 'romantic', label: 'Câlin & Doux', icon: '☁️', color: 'bg-pink-500/20 text-pink-400 border-pink-500/30' },
-  { id: 'playful', label: 'Humeur Joueuse', icon: '🎲', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  { id: 'wild', label: 'Très Sauvage', icon: '🔥', color: 'bg-rose-500/20 text-rose-500 border-rose-500/30' },
-  { id: 'tired', label: 'Pas ce soir', icon: '💤', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' }
 ];
 
 const GAMES_DATA = {
@@ -143,24 +131,27 @@ export default function App() {
 
   useEffect(() => {
     let unsub = () => {};
-    // On s'assure que le code Firebase ne s'exécute que côté client
-    if (typeof window !== 'undefined') {
+    // S'assure que Firebase auth est chargé uniquement sur le navigateur
+    if (typeof window !== 'undefined' && auth) {
       unsub = onAuthStateChanged(auth, (u) => {
         setUser(u);
         if (!u) {
           signInAnonymously(auth).catch((error) => {
-            console.error("Erreur d'authentification anonyme:", error);
+            console.error("Erreur d'authentification:", error);
             setLoading(false);
           });
         }
       });
+    } else {
+      setLoading(false);
     }
+    
     const timer = setTimeout(() => setLoading(false), 4000);
     return () => { unsub(); clearTimeout(timer); };
   }, []);
 
   useEffect(() => {
-    if (!user || typeof window === 'undefined') return;
+    if (!user || typeof window === 'undefined' || !db) return;
     const unsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
       if (snap.exists()) setUserData(snap.data());
       setLoading(false);
