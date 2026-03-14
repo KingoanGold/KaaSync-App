@@ -4,7 +4,8 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { 
   getFirestore, doc, setDoc, collection, 
-  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc
+  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc,
+  query, where, getDocs // Ajout des fonctions pour chercher le code duo
 } from 'firebase/firestore';
 import { 
   Heart, Flame, Plus, Sparkles, ChevronRight, 
@@ -180,7 +181,7 @@ const POSITIONS_DATA = [
   { n: "La Levrette plate", c: "Par derrière", d: 1, s: 3, desc: "Le partenaire A s'allonge complètement sur le ventre, jambes légèrement écartées. Le partenaire B s'allonge de tout son long par-dessus lui. Fortes frictions clitoridiennes/pubiennes.", v: "Variante : Glissez un petit coussin plat sous le bassin du partenaire allongé sur le ventre." },
   { n: "Le Chien de chasse", c: "Par derrière", d: 3, s: 4, desc: "En position de levrette, le receveur tend l'une de ses jambes vers l'arrière, entre les jambes du partenaire actif. L'angle devient asymétrique et très stimulant.", v: "Variante : Tendez la jambe vers le plafond plutôt que vers l'arrière." },
   { n: "Le Sphinx", c: "Par derrière", d: 2, s: 3, desc: "Une levrette où le receveur descend son torse pour s'appuyer sur ses avant-bras, les fesses bien en l'air, réduisant la fatigue des poignets.", v: "Variante : Le receveur peut coller sa poitrine au matelas pour cambrer encore plus le dos." },
-  { n: "La Grenouille", c: "Par derrière", d: 2, s: 4, desc: "Positionnée à plat ventre, la personne réceptrice écarte les genoux au maximum vers l'extérieur (façon grenouille). Le partenaire s'installe au milieu.", v: "Variante : Pressez légèrement l'intérieur des cuisses du receveur pour augmenter les sensations." },
+  { n: "La Grenouille", c: "Par derrière", d: 2, s: 4, desc: "Positionnée à plat ventre, la personne réceptrice écarte les genoux au maximum vers l'extérieur (façon grenouille). Le partenaire s'installe au milieu.", v: "Variante : Pressez légèrement l'intérieur cuisses du receveur pour augmenter les sensations." },
   { n: "Le Toboggan", c: "Par derrière", d: 3, s: 4, desc: "Le receveur est à genoux mais redresse complètement son buste à la verticale, cambrant le bas du dos en arrière vers le partenaire.", v: "Variante : Le partenaire arrière entoure le buste du receveur de ses bras pour caresser son torse." },
   { n: "La Levrette debout", c: "Par derrière", d: 4, s: 5, desc: "Le partenaire A se tient debout, penché en avant en appui sur un mur ou une table. Le partenaire B se place debout derrière lui.", v: "Variante : Le receveur garde les jambes bien droites pour étirer les ischio-jambiers et resserrer l'entrée." },
   { n: "La Levrette au bord du lit", c: "Par derrière", d: 2, s: 4, desc: "Le receveur est à quatre pattes sur le matelas, face au mur. Le partenaire se tient debout sur le sol, derrière lui, à hauteur idéale.", v: "Variante : Le partenaire debout maintient les cuisses du receveur pour contrôler l'intensité." },
@@ -234,7 +235,7 @@ const POSITIONS_DATA = [
   { n: "Le Plongeoir", c: "Sur Mobilier", d: 4, s: 4, desc: "L'actif se tient debout au sol, au ras du lit. Le receveur est allongé à plat ventre sur le lit, les hanches juste au bord du matelas.", v: "Variante : L'actif soulève les jambes du receveur pour les coincer sous ses propres bras." },
   { n: "Le 69 Classique", c: "Oral & Préliminaires", d: 2, s: 5, desc: "Les partenaires sont allongés tête-bêche (la tête de l'un au niveau du bassin de l'autre), l'un sur le dos, l'autre par-dessus.", v: "Variante : Synchronisez vos mouvements de langue pour atteindre le sommet en même temps." },
   { n: "Le 69 Inversé", c: "Oral & Préliminaires", d: 3, s: 5, desc: "Tête-bêche, mais le partenaire du dessus tourne le dos à celui du dessous (regardant ses pieds). Moins d'intimité visuelle, plus de concentration sur la sensation.", v: "Variante : Le partenaire du dessus caresse ses propres cuisses pour stimuler visuellement l'autre." },
-  { n: "Le 69 Debout", c: "Oral & Préliminaires", d: 5, s: 5, desc: "Le porteur est debout et maintient le receveur la tête en bas, le long de son corps. Très physique et vertigineux.", v: "Variante : Faites-le contre un mur pour aider le porteur à stabiliser le poids." },
+  { n: "Le 69 Debout", c: "Oral & Préliminaires", d: 5, s: 5, desc: "Le porteur est debout et maintient le receveur la tête en bas, le long de corps. Très physique et vertigineux.", v: "Variante : Faites-le contre un mur pour aider le porteur à stabiliser le poids." },
   { n: "Le Lotus Oral", c: "Oral & Préliminaires", d: 3, s: 4, desc: "Le partenaire A est assis en tailleur. Le partenaire B s'agenouille devant lui et se penche en avant pour prodiguer le soin.", v: "Variante : Le partenaire A caresse délicatement les cheveux et la nuque de B." },
   { n: "Le 69 sur le côté", c: "Oral & Préliminaires", d: 2, s: 4, desc: "Position tête-bêche mais allongés sur le côté. Une version très reposante du 69 classique qui permet de faire durer le plaisir sans fatigue musculaire.", v: "Variante : Pliez la jambe du dessus pour faciliter l'accès à votre partenaire." },
   { n: "La Cascade Orale", c: "Oral & Préliminaires", d: 3, s: 5, desc: "Le receveur est allongé sur le lit, la tête pendante dans le vide au bord du matelas. L'actif se tient debout et se penche sur lui.", v: "Variante : L'afflux sanguin vers la tête augmente la sensibilité du receveur, allez-y doucement." },
@@ -564,6 +565,9 @@ export default function App() {
     setIsCreating(false);
     setEditPosId(null);
     setNewPos({ name: '', cat: 'Face à face', newCat: '', desc: '', v: '', diff: 3, spice: 3, shared: true });
+    
+    // REDIRECTION AUTOMATIQUE VERS LE CATALOGUE POUR VOIR LA NOUVELLE POSITION
+    setActiveTab('explorer');
   };
 
   const handleDeletePosition = async () => {
@@ -579,18 +583,43 @@ export default function App() {
       notify("Code invalide", "❌");
       return;
     }
-    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-    await updateDoc(userRef, { partnerUid: partnerCodeInput });
-    notify("Liaison envoyée !", "🔗");
+
+    if (partnerCodeInput === userData.pairCode) {
+      notify("Vous ne pouvez pas vous lier à vous-même", "⚠️");
+      return;
+    }
+
+    try {
+      // Recherche de l'utilisateur qui possède ce pairCode dans la base de données
+      const q = query(collection(db, 'artifacts', appId, 'users'), where("pairCode", "==", partnerCodeInput));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        // Personne ne possède ce code
+        notify("Ce code n'appartient à personne. Vérifiez les lettres.", "❌");
+        return;
+      }
+
+      // Si le partenaire existe, on récupère son vrai UID Firebase
+      const partnerDoc = querySnapshot.docs[0];
+      const actualPartnerUid = partnerDoc.id;
+
+      const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+      await updateDoc(userRef, { partnerUid: actualPartnerUid });
+      notify("Liaison réussie !", "🔗");
+      
+    } catch (error) {
+      notify("Une erreur est survenue lors de la recherche.", "❌");
+    }
   };
 
-  // NOUVEAU : FONCTION POUR DÉLIER LE PARTENAIRE
+  // FONCTION POUR DÉLIER LE PARTENAIRE
   const handleUnlinkPartner = async () => {
     if (!user) return;
-    if (window.confirm("Voulez-vous vraiment délier votre partenaire ?")) {
+    if (window.confirm("⚠️ Attention : Voulez-vous vraiment vous séparer de ce partenaire ? Vous ne verrez plus vos données communes.")) {
       const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
       await updateDoc(userRef, { partnerUid: null });
-      notify("Partenaire délié", "🔓");
+      notify("Partenaire délié avec succès", "🔓");
     }
   };
 
@@ -923,7 +952,7 @@ export default function App() {
                      onChange={(e) => setPartnerCodeInput(e.target.value.toUpperCase())}
                      maxLength={6}
                    />
-                   <button onClick={handleLinkPartner} className="bg-emerald-600 px-6 py-3 rounded-xl font-bold text-white text-xs">LIER</button>
+                   <button onClick={handleLinkPartner} className="bg-emerald-600 px-6 py-3 rounded-xl font-bold text-white text-xs hover:bg-emerald-500 transition-all">LIER</button>
                  </div>
                </div>
              ) : (
@@ -1020,10 +1049,13 @@ export default function App() {
                    </div>
                  )}
 
-                 {/* NOUVEAU : BOUTON POUR DÉLIER */}
-                 <div className="pt-6">
-                   <button onClick={handleUnlinkPartner} className="w-full bg-slate-900/50 border border-rose-900/30 text-rose-500/70 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-900/20 hover:text-rose-400 transition-all">
-                     Délier mon partenaire
+                 {/* BOUTON ÉVIDENT POUR DÉLIER LE PARTENAIRE */}
+                 <div className="pt-8 pb-4">
+                   <button 
+                     onClick={handleUnlinkPartner} 
+                     className="w-full bg-rose-600/20 border border-rose-500 text-rose-500 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all shadow-[0_0_15px_rgba(225,29,72,0.3)] flex items-center justify-center gap-2"
+                   >
+                     ⚠️ Délier mon partenaire
                    </button>
                  </div>
 
@@ -1179,3 +1211,138 @@ export default function App() {
             <div className={`space-y-6 ${discreetMode ? 'blur-md opacity-50 select-none' : ''}`}>
                <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 relative overflow-hidden">
                   <Info className="absolute -top-4 -right-4 text-white/5" size={120} />
+                  <h4 className="text-rose-400 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                     <Sparkles size={14}/> La Posture
+                  </h4>
+                  <p className="text-slate-300 text-sm leading-relaxed relative z-10 whitespace-pre-line">{applyDiscreet(selectedPosition.desc)}</p>
+               </div>
+
+               {selectedPosition.v && (
+                 <div className="bg-indigo-900/20 border border-indigo-500/20 rounded-3xl p-6">
+                    <h4 className="text-indigo-400 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                       <RefreshCw size={14}/> Variante & Astuce
+                    </h4>
+                    <p className="text-slate-300 text-sm leading-relaxed">{applyDiscreet(selectedPosition.v)}</p>
+                 </div>
+               )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 my-8">
+              <div className="bg-slate-900/40 p-5 rounded-3xl border border-slate-800 text-center">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Physique</span>
+                <div className="flex justify-center gap-1.5">{[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full ${i < selectedPosition.diff ? 'bg-indigo-500' : 'bg-slate-800'}`}/>)}</div>
+              </div>
+              <div className="bg-slate-900/40 p-5 rounded-3xl border border-slate-800 text-center">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Intensité</span>
+                <div className="flex justify-center gap-1.5">{[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full ${i < selectedPosition.spice ? 'bg-rose-500' : 'bg-slate-800'}`}/>)}</div>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 bg-slate-950 border-t border-slate-900 shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
+            <button onClick={() => handleLike(selectedPosition.id)} className={`w-full py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${userData?.likes?.includes(selectedPosition.id) ? 'bg-slate-800 text-rose-500' : 'bg-rose-600 text-white'}`}>
+              <Heart fill={userData?.likes?.includes(selectedPosition.id) ? "currentColor" : "none"} size={18} />
+              {userData?.likes?.includes(selectedPosition.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CREATION & EDITION */}
+      {isCreating && (
+        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-full duration-300">
+          <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+            <button onClick={() => {setIsCreating(false); setEditPosId(null);}} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+            <h2 className="font-black text-white">{editPosId ? 'Modifier' : 'Créer'}</h2>
+            <div className="w-9"/>
+          </header>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '20px' }}>
+            
+            {/* BOUTON DE PARTAGE (PRIVÉ VS PARTENAIRE) */}
+            <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+               <div>
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Visibilité</span>
+                 <span className={`text-sm font-bold ${newPos.shared ? 'text-emerald-400' : 'text-slate-400'}`}>
+                   {newPos.shared ? 'Partagée avec mon partenaire' : 'Privée (Moi uniquement)'}
+                 </span>
+               </div>
+               <button 
+                 onClick={() => setNewPos({...newPos, shared: !newPos.shared})} 
+                 className={`w-14 h-8 rounded-full relative transition-colors ${newPos.shared ? 'bg-emerald-500' : 'bg-slate-700'}`}
+               >
+                 <div className={`w-6 h-6 rounded-full bg-white absolute top-1 transition-transform ${newPos.shared ? 'translate-x-7' : 'translate-x-1'}`}/>
+               </button>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nom de la position</label>
+              <input className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base" placeholder="Ex: Le Volcan..." value={newPos.name} onChange={(e) => setNewPos({...newPos, name: e.target.value})} />
+            </div>
+
+            {/* SELECTION CATÉGORIE + NOUVELLE */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Catégorie</label>
+              <select className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base appearance-none" value={newPos.cat} onChange={(e) => setNewPos({...newPos, cat: e.target.value})}>
+                {displayCategories.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
+                <option value="NEW">+ Créer une nouvelle catégorie...</option>
+              </select>
+              
+              {newPos.cat === 'NEW' && (
+                <div className="mt-3 animate-in fade-in slide-in-from-top-2">
+                  <input className="w-full bg-indigo-900/20 border border-indigo-500/50 focus:border-indigo-400 p-4 rounded-2xl outline-none text-indigo-300 text-base placeholder:text-indigo-900/50" placeholder="Nom de votre nouvelle catégorie" value={newPos.newCat} onChange={(e) => setNewPos({...newPos, newCat: e.target.value})} autoFocus />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Physique ({newPos.diff}/5)</label>
+                <input type="range" min="1" max="5" value={newPos.diff} onChange={(e) => setNewPos({...newPos, diff: parseInt(e.target.value)})} className="w-full accent-indigo-500" />
+              </div>
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Intensité ({newPos.spice}/5)</label>
+                <input type="range" min="1" max="5" value={newPos.spice} onChange={(e) => setNewPos({...newPos, spice: parseInt(e.target.value)})} className="w-full accent-rose-500" />
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Description de la Posture</label>
+              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-5 rounded-2xl outline-none h-32 text-base leading-relaxed text-slate-300 resize-none" placeholder="Décrivez comment se placer..." value={newPos.desc} onChange={(e) => setNewPos({...newPos, desc: e.target.value})} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variante (Optionnel)</label>
+              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 p-5 rounded-2xl outline-none h-24 text-base leading-relaxed text-slate-300 resize-none" placeholder="Une astuce ou variante pour pimenter..." value={newPos.v} onChange={(e) => setNewPos({...newPos, v: e.target.value})} />
+            </div>
+
+          </div>
+          <div className="p-6 bg-slate-950 border-t border-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
+             <button onClick={handleSavePosition} className="w-full bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all active:scale-[0.98]">
+               {editPosId ? 'Enregistrer les modifications' : (newPos.shared ? 'Créer et Partager' : 'Créer Secrètement')}
+             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TIP */}
+      {selectedTip && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
+          <header className="px-6 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+            <button onClick={() => setSelectedTip(null)} className="text-slate-400 bg-slate-800 p-2 rounded-full hover:bg-slate-700 transition"><ArrowLeft size={20}/></button>
+          </header>
+          <div className="flex-1 overflow-y-auto px-6 py-8 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+             <h2 className="text-3xl font-black text-white mb-6 leading-tight">{selectedTip.title}</h2>
+             <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">{selectedTip.content}</div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+      `}</style>
+    </div>
+  );
+}
