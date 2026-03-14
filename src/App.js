@@ -1,11 +1,11 @@
 /* eslint-disable */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, linkWithPopup, signInWithPopup } from 'firebase/auth';
 import { 
   getFirestore, doc, setDoc, collection, 
   onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc,
-  query, where, getDocs // Ajout des fonctions pour chercher le code duo
+  query, where, getDocs, orderBy, limit
 } from 'firebase/firestore';
 import { 
   Heart, Flame, Plus, Sparkles, ChevronRight, 
@@ -15,7 +15,7 @@ import {
   MessageCircle, Filter, Music, CheckCircle2, 
   Shuffle, RefreshCw, Edit2, Timer, Gift, Zap, 
   Trash2, Edit3, FolderPlus, BellRing, HeartHandshake,
-  CalendarHeart
+  CalendarHeart, Send, LogIn, MessageSquare
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ULTRA-SÉCURISÉE (ANTI-CRASH) ---
@@ -218,7 +218,7 @@ const POSITIONS_DATA = [
   { n: "La Danse du ventre", c: "Debout & Acrobatique", d: 4, s: 3, desc: "Les deux partenaires sont debout face à face au milieu de la pièce, genoux légèrement fléchis pour s'aligner, et ondulent leur bassin.", v: "Variante : Agrippez-vous par les épaules et tournez lentement sur vous-mêmes." },
   { n: "Le T de la victoire", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Le porteur tient le receveur par les hanches. Le receveur est à l'horizontale, formant un T avec le corps du porteur.", v: "Variante : Le receveur s'aide en prenant appui sur le mur avec ses bras." },
   { n: "Le X debout", c: "Debout & Acrobatique", d: 4, s: 4, desc: "Le receveur est de dos contre le mur, bras et jambes grands écartés (en X). L'actif vient s'emboîter au centre de l'étoile.", v: "Variante : L'actif maintient les poignets du receveur plaqués contre le mur." },
-  { n: "Le Saut de l'ange", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Une fois porté (comme dans l'Ascenseur), le receveur cambre violemment le dos en arrière, la tête vers le sol, s'abandonnant totalement.", v: "Variante : Le porteur soutient fermement le bas du dos du receveur d'une main." },
+  { n: "Le Saut de l'ange", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Une fois porté (comme dans l'Ascenseur), le receveur cambre violemment le dos en arrière, la tête vers le sol, s'abandonnant totally.", v: "Variante : Le porteur soutient fermement le bas du dos du receveur d'une main." },
   { n: "Le Porté en berceau", c: "Debout & Acrobatique", d: 5, s: 4, desc: "Le porteur soulève son partenaire en le portant dans ses bras (une main dans le dos, l'autre sous les genoux), à l'horizontale.", v: "Variante : Marchez très lentement dans la pièce pendant l'acte." },
   { n: "La Brouette", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Le receveur est en appui sur ses mains au sol. Le partenaire debout derrière lui attrape ses chevilles et les soulève au niveau de ses hanches.", v: "Variante : Placez des coussins sous les poignets du receveur pour plus de confort." },
   { n: "Le Fauteuil de bureau", c: "Sur Mobilier", d: 2, s: 3, desc: "L'actif s'assoit sur un fauteuil à roulettes. Le receveur le chevauche. Profitez du rebond et de la rotation du siège.", v: "Variante : Le receveur pousse avec ses pieds sur le sol pour faire tourner le fauteuil." },
@@ -332,6 +332,12 @@ export default function App() {
   const [gameResult, setGameResult] = useState(null);
   
   const [lastSeenPing, setLastSeenPing] = useState(Date.now());
+
+  // NOUVEAUX ÉTATS POUR LE CHAT
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const chatEndRef = useRef(null);
 
   // --- FIREBASE INIT ---
   useEffect(() => {
@@ -495,6 +501,28 @@ export default function App() {
   };
 
   // --- ACTIONS UTILISATEUR & CREATION ---
+  
+  // NOUVEAU: CONNEXION GOOGLE
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      if (user && user.isAnonymous) {
+        await linkWithPopup(user, provider);
+        notify("Données sauvegardées sur Google !", "✅");
+      } else {
+        await signInWithPopup(auth, provider);
+        notify("Connecté avec Google !", "✅");
+      }
+    } catch (error) {
+      if (error.code === 'auth/credential-already-in-use') {
+         await signInWithPopup(auth, provider);
+         notify("Connecté à votre compte existant.", "✅");
+      } else {
+         notify("Erreur de connexion Google", "❌");
+      }
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
     const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
@@ -621,6 +649,45 @@ export default function App() {
       await updateDoc(userRef, { partnerUid: null });
       notify("Partenaire délié avec succès", "🔓");
     }
+  };
+
+  // --- LOGIQUE DU CHAT ---
+  useEffect(() => {
+    if (!isChatOpen || !user || !userData?.partnerUid) return;
+    
+    // Création d'un ID de chat unique combinant les deux UID, toujours dans le même ordre
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    const q = query(
+      collection(db, 'artifacts', appId, 'chats', chatId, 'messages'), 
+      orderBy('createdAt', 'asc'), 
+      limit(50)
+    );
+    
+    const unsub = onSnapshot(q, (snap) => {
+      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    
+    return () => unsub();
+  }, [isChatOpen, user, userData?.partnerUid]);
+
+  useEffect(() => {
+    // Auto-scroll vers le bas quand un nouveau message arrive
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isChatOpen]);
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !user || !userData?.partnerUid) return;
+    
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    const msgText = newMessage.trim();
+    setNewMessage(''); // Vider le champ immédiatement pour la réactivité
+    
+    await addDoc(collection(db, 'artifacts', appId, 'chats', chatId, 'messages'), {
+      text: msgText,
+      uid: user.uid,
+      createdAt: Date.now()
+    });
   };
 
   const applyDiscreet = (text, type = 'desc') => discreetMode ? (type === 'title' ? "Masqué" : text.replace(/[a-zA-Z]/g, "x")) : text;
@@ -974,6 +1041,23 @@ export default function App() {
                    </div>
                  </div>
 
+                 {/* NOUVEAU: BOUTON CHAT PRIVÉ */}
+                 <div 
+                   onClick={() => setIsChatOpen(true)}
+                   className="bg-slate-900 border border-slate-800 p-4 rounded-[2rem] flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-all shadow-lg"
+                 >
+                   <div className="flex items-center gap-4">
+                     <div className="bg-rose-500/20 p-3 rounded-full text-rose-500">
+                       <MessageSquare size={24} />
+                     </div>
+                     <div>
+                       <h3 className="font-bold text-white text-sm">Ouvrir le Chat Secret</h3>
+                       <p className="text-slate-400 text-xs">Discutez en privé avec {partnerData?.pseudo || 'votre partenaire'}</p>
+                     </div>
+                   </div>
+                   <ChevronRight className="text-slate-600" />
+                 </div>
+
                  {/* HUMEUR DU JOUR */}
                  <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6">
                     <h3 className="text-sm font-black text-white mb-4 uppercase tracking-widest text-center flex items-center justify-center gap-2"><HeartHandshake size={16}/> Notre Humeur</h3>
@@ -1082,15 +1166,28 @@ export default function App() {
                </div>
                <h2 className="text-2xl font-black text-white mb-2">{userData?.pseudo || 'Anonyme'}</h2>
                <p className="text-slate-400 text-sm text-center max-w-xs">{userData?.bio || 'Explorateur de sensations...'}</p>
-               <button 
-                 onClick={() => {
-                   setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' });
-                   setIsEditingProfile(true);
-                 }}
-                 className="mt-5 flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-full text-xs font-bold transition border border-slate-700 hover:bg-slate-700"
-               >
-                 <Edit2 size={14} /> Modifier mon profil
-               </button>
+               
+               <div className="flex flex-col items-center gap-3 mt-5">
+                 <button 
+                   onClick={() => {
+                     setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' });
+                     setIsEditingProfile(true);
+                   }}
+                   className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-full text-xs font-bold transition border border-slate-700 hover:bg-slate-700"
+                 >
+                   <Edit2 size={14} /> Modifier mon profil
+                 </button>
+
+                 {/* NOUVEAU: BOUTON SAUVEGARDE GOOGLE */}
+                 {user?.isAnonymous && (
+                   <button 
+                     onClick={handleGoogleLogin}
+                     className="flex items-center gap-2 bg-white text-slate-900 px-5 py-2.5 rounded-full text-xs font-black transition hover:bg-slate-200 shadow-lg shadow-white/10"
+                   >
+                     <LogIn size={14} /> Sauvegarder avec Google
+                   </button>
+                 )}
+               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-8">
@@ -1129,6 +1226,63 @@ export default function App() {
       </nav>
 
       {/* --- MODALS --- */}
+
+      {/* NOUVEAU: MODAL DU CHAT */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-right duration-300">
+          <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/90 backdrop-blur-xl z-10 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+            <button onClick={() => setIsChatOpen(false)} className="text-slate-400 p-2 bg-slate-900 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
+            <div className="flex flex-col items-center">
+              <h2 className="font-black text-white tracking-tight flex items-center gap-2">
+                {partnerData?.pseudo || 'Partenaire'}
+              </h2>
+              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Connexion sécurisée</span>
+            </div>
+            <div className="w-10"></div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-4 custom-scroll space-y-4 flex flex-col bg-slate-950" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {messages.length === 0 ? (
+               <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-sm space-y-4 opacity-50">
+                  <MessageSquare size={48} className="text-slate-700" />
+                  <p>Envoyez votre premier message...</p>
+               </div>
+            ) : (
+               messages.map((msg, i) => {
+                 const isMe = msg.uid === user?.uid;
+                 return (
+                   <div key={msg.id || i} className={`max-w-[80%] flex ${isMe ? 'ml-auto justify-end' : 'mr-auto justify-start'}`}>
+                     <div className={`px-4 py-3 text-sm ${isMe ? 'bg-rose-600 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-slate-800 text-slate-200 rounded-r-2xl rounded-tl-2xl'}`}>
+                       {msg.text}
+                     </div>
+                   </div>
+                 );
+               })
+            )}
+            {/* Élément invisible pour forcer le scroll vers le bas */}
+            <div ref={chatEndRef} />
+          </div>
+
+          <form onSubmit={handleSendMessage} className="p-4 bg-slate-950/80 backdrop-blur-xl border-t border-slate-900 shrink-0 flex gap-2 items-end" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
+             <textarea 
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Écrire un message secret..."
+                className="flex-1 bg-slate-900 border border-slate-800 text-white p-3 rounded-2xl outline-none text-base resize-none max-h-32 min-h-[50px] custom-scroll"
+                rows="1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+             />
+             <button type="submit" disabled={!newMessage.trim()} className="bg-rose-600 p-3.5 rounded-2xl text-white disabled:opacity-50 disabled:bg-slate-800 transition-colors shrink-0">
+               <Send size={20} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
+             </button>
+          </form>
+        </div>
+      )}
 
       {/* MODAL EDITION PROFIL */}
       {isEditingProfile && (
