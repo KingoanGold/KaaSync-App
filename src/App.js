@@ -1510,7 +1510,7 @@ export default function App() {
         </div>
       )}
 
-      {/* NOUVEAU: MODAL INSTALLATION ECRAN ACCUEIL */}
+      {/* NOUVEAU: MODAL INSTALLATION ECRAN ACCUEIL SANS IMAGE */}
       {showInstallTutorial && (
         <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
           <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/90 backdrop-blur-xl z-10 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
@@ -1520,14 +1520,6 @@ export default function App() {
           </header>
 
           <div className="flex-1 overflow-y-auto p-6 custom-scroll space-y-6" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
-            
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-2 shadow-xl">
-              <img 
-                src="http://googleusercontent.com/generated_image_content/0" 
-                alt="Tutoriel d'installation sur écran d'accueil" 
-                className="w-full rounded-2xl" 
-              />
-            </div>
             
             <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
               <h3 className="text-base font-black text-white flex items-center gap-2">🍏 Pour iOS (iPhone)</h3>
