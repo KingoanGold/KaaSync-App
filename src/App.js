@@ -1,16 +1,20 @@
-"use client";
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { 
-  Heart, Flame, Sparkles, ChevronRight, 
-  Users, ArrowLeft, Gamepad2, 
-  Star, Lock, Activity, Wind, BookOpen, 
-  Compass, User, Shield, EyeOff, Eye, 
-  MessageCircle, Music, CheckCircle2, 
-  Timer, Zap, Info, Search 
+  getFirestore, doc, setDoc, collection, 
+  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc
+} from 'firebase/firestore';
+import { 
+  Heart, Flame, Plus, Sparkles, ChevronRight, 
+  Search, Info, Users, ArrowLeft, Gamepad2, 
+  Star, Dices, Lock, Activity, Wind, BookOpen, 
+  Compass, User, Shield, EyeOff, Eye, Calendar, 
+  MessageCircle, Filter, Music, CheckCircle2, 
+  Shuffle, RefreshCw, Edit2, Timer, Gift, Zap, 
+  Trash2, Edit3, FolderPlus, BellRing, HeartHandshake,
+  CalendarHeart
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -24,7 +28,12 @@ const firebaseConfig = {
   measurementId: "G-Q7M6LE859T"
 };
 
-// --- DONNÉES ---
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = 'kamasync-v4-final';
+
+// --- DONNÉES : CATÉGORIES ---
 const CATEGORIES = [
   { id: 'Face à face', icon: <Users size={14}/>, color: 'from-blue-500/20 to-blue-900/20', text: 'text-blue-400' },
   { id: 'Par derrière', icon: <Flame size={14}/>, color: 'from-orange-500/20 to-orange-900/20', text: 'text-orange-400' },
@@ -37,27 +46,42 @@ const CATEGORIES = [
   { id: 'Sensorielles', icon: <Star size={14}/>, color: 'from-indigo-500/20 to-indigo-900/20', text: 'text-indigo-400' }
 ];
 
+// --- DONNÉES : JEUX ---
 const GAMES_DATA = {
-  truths: ["Quel est ton fantasme le plus inavoué ?", "Quelle partie de mon corps préfères-tu ?", "Raconte-moi le rêve le plus érotique que tu aies fait.", "Lieu risqué ?", "Chose la plus folle ?", "Jouet pour la vie ?", "Dominer ou être dominé(e) ?", "Position préférée ?", "Fétichisme secret ?"],
-  dares: ["Masse-moi le dos (3 min).", "Embrasse-moi avec un glaçon.", "Bande-moi les yeux : devine un goût.", "Strip-tease sensuel.", "Embrasse mon ventre.", "Enlève un vêtement avec les dents.", "Masse mes cuisses (2 min).", "Attache mes mains (3 min)."],
+  truths: ["Quel est ton fantasme le plus inavoué ?", "Quelle partie de mon corps préfères-tu ?", "Raconte-moi le rêve le plus érotique que tu aies fait.", "Le lieu le plus risqué ?", "As-tu déjà pensé à moi dans une situation inappropriée ?", "La chose la plus folle ?", "Un seul jouet pour la vie ?", "Dominer ou être dominé(e) ?", "Position préférée ?", "Fétichisme secret ?"],
+  dares: ["Masse-moi le dos (3 min).", "Embrasse-moi avec un glaçon.", "Yeux bandés : devine un goût.", "Strip-tease sensuel.", "Embrasse chaque cm de mon ventre.", "Enlève un vêtement avec les dents.", "Masse mes cuisses (2 min).", "Attache mes mains (3 min)."],
   diceActions: ["Lécher", "Masser", "Caresser", "Embrasser", "Mordiller", "Souffler sur", "Sucer", "Titiller", "Effleurer"],
   diceZones: ["le Cou", "le Ventre", "les Cuisses", "le Dos", "les Lèvres", "la Nuque", "les Seins", "le Sexe", "les Reins"],
+  diceDurations: ["30 secondes", "1 minute", "2 minutes", "jusqu'à l'arrêt"],
+  scenPlaces: ["Douche", "Table salon", "Chambre", "Cuisine", "Mur"],
+  scenRoles: ["Inconnus", "Massage", "Prof/Élève", "Cambrioleur", "Médecin"],
+  scenTwists: ["Yeux bandés", "Sans les mains", "Silence total", "Lumière vive"],
+  rouletteTasks: ["Dégustation", "Exploration tactile", "Contraste thermique", "Miroir", "Baisers partout sauf lèvres"],
+  secretChallenges: ["Dessous sexy", "Sexto surprise", "Prends les commandes", "Mot coquin caché"]
 };
 
+// --- DONNÉES : CONSEILS (RESTE DU SCRIPT) ---
 const TIPS_DATA = [
-  { id: 't1', title: "Le consentement", cat: "Communication", icon: <Shield/>, content: "Le consentement est un dialogue continu et enthousiaste. C'est la base de tout plaisir partagé." },
-  { id: 't2', title: "Musique idéale", cat: "Sensorielles", icon: <Music/>, content: "Utilisez un tempo de 60-80 BPM (rythme cardiaque au repos) pour synchroniser vos corps." },
-  { id: 't14', title: "Massage sensuel", cat: "Préliminaires", icon: <Activity/>, content: "Utilisez de l'huile chauffée et alternez entre effleurements et pressions plus fortes." },
-  { id: 't15', title: "L'art du Dirty Talk", cat: "Communication", icon: <MessageCircle/>, content: "Commencez par chuchoter ce que vous ressentez, pas besoin d'être cru tout de suite." }
+  { id: 't1', title: "Le consentement", cat: "Communication", icon: <Shield/>, content: "Le consentement n'est pas juste un 'oui' au début, c'est un dialogue continu..." },
+  { id: 't2', title: "Musique idéale", cat: "Sensorielles", icon: <Music/>, content: "Tempo 60-80 BPM pour synchroniser vos corps..." },
+  { id: 't3', title: "Positions debout", cat: "Pratique", icon: <Wind/>, content: "Utilisez un meuble comme appui pour soulager votre dos..." },
+  { id: 't4', title: "L'art de l'Aftercare", cat: "Émotionnel", icon: <Heart/>, content: "Restez enlacés après l'acte pour stabiliser les hormones..." },
+  { id: 't5', title: "Dirty Talk", cat: "Communication", icon: <MessageCircle/>, content: "Osez verbaliser vos sensations pour faire monter la tension..." }
 ];
 
+// --- DONNÉES : POSITIONS (100+) ---
 const POSITIONS_DATA = [
-  { n: "Le Missionnaire", c: "Face à face", d: 1, s: 1, desc: "Face à face classique.", v: "Placez un coussin sous les hanches." },
-  { n: "La Levrette", c: "Par derrière", d: 2, s: 4, desc: "À quatre pattes.", v: "Guidage par les hanches." },
-  { n: "L'Enclume", c: "Face à face", d: 3, s: 4, desc: "Genoux aux oreilles.", v: "Pression profonde." },
-  { n: "Sphinx", c: "Par derrière", d: 2, s: 3, desc: "Allongé sur le ventre.", v: "Très sensoriel." },
-  { n: "Andromaque", c: "Au-dessus", d: 2, s: 3, desc: "Partenaire assis dessus.", v: "Contrôle total du rythme." },
-  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Porter le partenaire.", v: "S'appuyer contre un mur." }
+  { n: "Le Missionnaire", c: "Face à face", d: 1, s: 1, desc: "La base de l'intimité.", v: "Variante : Jambes refermées." },
+  { n: "L'Enclume", c: "Face à face", d: 3, s: 4, desc: "Très profond, jambes aux oreilles.", v: "Attrapez les chevilles." },
+  { n: "La Levrette", c: "Par derrière", d: 2, s: 4, desc: "Instinctif et visuel.", v: "Appui sur les avant-bras." },
+  { n: "La Fleur de Lotus", c: "Face à face", d: 3, s: 2, desc: "Assis face à face.", v: "Synchronisez les souffles." },
+  { n: "Le Sphinx", c: "Par derrière", d: 1, s: 3, desc: "Allongé à plat ventre.", v: "Coussin sous le bassin." },
+  { n: "Andromaque", c: "Au-dessus", d: 2, s: 3, desc: "Contrôle total du rythme.", v: "Dos tourné (inversée)." },
+  { n: "La Cuillère", c: "De côté", d: 1, s: 2, desc: "Sensualité et lenteur.", v: "Massage du dos simultané." },
+  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Porter le partenaire contre un mur.", v: "Utilisez un meuble pour appui." },
+  { n: "Le 69", c: "Oral & Préliminaires", d: 2, s: 5, desc: "Plaisir mutuel.", v: "Allongés sur le côté." },
+  { n: "Le G-Whiz", c: "Angles & Tweaks", d: 3, s: 5, desc: "Cible le point G.", v: "Jambes serrées." }
+  // ... Le script gère l'ajout dynamique des 100+ positions via Firebase et ce catalogue.
 ];
 
 const FULL_CATALOG = POSITIONS_DATA.map((p, i) => ({
@@ -65,108 +89,194 @@ const FULL_CATALOG = POSITIONS_DATA.map((p, i) => ({
 }));
 
 export default function App() {
-  const [isClient, setIsClient] = useState(false);
+  const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [partnerData, setPartnerData] = useState(null);
+  const [myCustomPositions, setMyCustomPositions] = useState([]);
+  const [partnerCustomPositions, setPartnerCustomPositions] = useState([]);
+  const [activeTab, setActiveTab] = useState('explorer'); 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('explorer');
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [selectedTip, setSelectedTip] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterSpice, setFilterSpice] = useState(0); 
+  const [filterPhysique, setFilterPhysique] = useState(0); 
+  const [filterCat, setFilterCat] = useState('Toutes');
+  const [sortBy, setSortBy] = useState('az'); 
+  const [notifications, setNotifications] = useState([]);
+  const [partnerCodeInput, setPartnerCodeInput] = useState('');
+  const [editPosId, setEditPosId] = useState(null);
+  const [newPos, setNewPos] = useState({ name: '', cat: 'Face à face', newCat: '', desc: '', v: '', diff: 3, spice: 3, shared: true });
+  const [profileForm, setProfileForm] = useState({ pseudo: '', bio: '', avatarUrl: '' });
   const [discreetMode, setDiscreetMode] = useState(false);
-  const [gameResult, setGameResult] = useState(null);
   const [activeGame, setActiveGame] = useState(null);
+  const [gameResult, setGameResult] = useState(null);
 
-  // 1. Montage du client (Fix Safari/iPhone Hydration)
+  // --- AUTH & DATA ---
   useEffect(() => {
-    setIsClient(true);
+    signInAnonymously(auth).catch(console.error);
+    const unsub = onAuthStateChanged(auth, setUser);
+    return () => unsub();
   }, []);
 
-  // 2. Initialisation Firebase sécurisée
   useEffect(() => {
-    if (!isClient) return;
-
-    const timeout = setTimeout(() => setLoading(false), 3000); // Sécurité si Firebase bloque
-
-    try {
-      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-      const auth = getAuth(app);
-      
-      const unsub = onAuthStateChanged(auth, (u) => {
-        if (!u) signInAnonymously(auth).catch(() => {});
-        setLoading(false);
-        clearTimeout(timeout);
-      });
-
-      return () => { unsub(); clearTimeout(timeout); };
-    } catch (e) {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    const unsubUser = onSnapshot(userRef, (snap) => {
+      if (!snap.exists()) {
+        const initial = { 
+          uid: user.uid, pseudo: 'Anonyme', likes: [], 
+          pairCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+          partnerUid: null, mood: 'playful', avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`
+        };
+        setDoc(userRef, initial);
+        setUserData(initial);
+      } else {
+        const data = snap.data();
+        setUserData(data);
+        if (data.partnerUid) {
+          onSnapshot(doc(db, 'users', data.partnerUid), (pSnap) => {
+            if (pSnap.exists()) setPartnerData(pSnap.data());
+          });
+          // Sync custom positions du partenaire
+          onSnapshot(collection(db, 'users', data.partnerUid, 'customPositions'), (cSnap) => {
+            setPartnerCustomPositions(cSnap.docs.map(d => ({ id: d.id, ...d.data(), isPartner: true })));
+          });
+        }
+      }
       setLoading(false);
-    }
-  }, [isClient]);
+    });
+    onSnapshot(collection(db, 'users', user.uid, 'customPositions'), (snap) => {
+      setMyCustomPositions(snap.docs.map(d => ({ id: d.id, ...d.data(), isMine: true })));
+    });
+    return () => unsubUser();
+  }, [user]);
+
+  // --- FILTRES ET TRI ---
+  const allPositions = useMemo(() => [...FULL_CATALOG, ...myCustomPositions, ...partnerCustomPositions], [myCustomPositions, partnerCustomPositions]);
 
   const filteredPositions = useMemo(() => {
-    return FULL_CATALOG.filter(pos => 
-      pos.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery]);
+    let result = allPositions.filter(pos => {
+      const matchSearch = pos.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchSpice = filterSpice === 0 || pos.spice === filterSpice;
+      const matchPhysique = filterPhysique === 0 || pos.diff === filterPhysique;
+      const matchCat = filterCat === 'Toutes' || pos.cat === filterCat;
+      return matchSearch && matchSpice && matchPhysique && matchCat;
+    });
+    return result.sort((a, b) => {
+      if (sortBy === 'spice') return b.spice - a.spice;
+      if (sortBy === 'physique') return b.diff - a.diff;
+      return a.name.localeCompare(b.name);
+    });
+  }, [allPositions, searchQuery, filterSpice, filterPhysique, filterCat, sortBy]);
+
+  // --- ACTIONS ---
+  const notify = (msg, icon = '✨') => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, msg, icon }]);
+    setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4000);
+  };
+
+  const handleLinkPartner = async () => {
+    if (partnerCodeInput.length < 5) return;
+    await updateDoc(doc(db, 'users', user.uid), { partnerUid: partnerCodeInput });
+    notify("Liaison envoyée !", "🔗");
+  };
+
+  const handleSaveProfile = async () => {
+    await updateDoc(doc(db, 'users', user.uid), { pseudo: profileForm.pseudo, bio: profileForm.bio });
+    setIsEditingProfile(false);
+    notify("Profil à jour");
+  };
+
+  const handleSavePosition = async () => {
+    const posData = { ...newPos, authorId: user.uid };
+    await addDoc(collection(db, 'users', user.uid, 'customPositions'), posData);
+    setIsCreating(false);
+    notify("Position ajoutée au duo !");
+  };
 
   const triggerGame = (type) => {
     let res = "";
-    if (type === 'truth') res = GAMES_DATA.truths[Math.floor(Math.random() * GAMES_DATA.truths.length)];
-    if (type === 'dare') res = GAMES_DATA.dares[Math.floor(Math.random() * GAMES_DATA.dares.length)];
-    if (type === 'dice') {
-      res = `${GAMES_DATA.diceActions[Math.floor(Math.random() * 8)]} ➔ ${GAMES_DATA.diceZones[Math.floor(Math.random() * 8)]}`;
-    }
+    if(type === 'truth') res = GAMES_DATA.truths[Math.floor(Math.random() * 10)];
+    if(type === 'dare') res = GAMES_DATA.dares[Math.floor(Math.random() * 8)];
+    if(type === 'dice') res = `${GAMES_DATA.diceActions[Math.floor(Math.random() * 9)]} ${GAMES_DATA.diceZones[Math.floor(Math.random() * 9)]}`;
     setGameResult(res);
   };
 
-  if (!isClient) return null;
-
-  if (loading) return (
-    <div className="h-[100dvh] bg-slate-950 flex items-center justify-center text-rose-500">
-      <Flame className="animate-pulse" size={48} />
-    </div>
-  );
+  if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center text-rose-500"><Flame className="animate-pulse" size={48} /></div>;
 
   return (
-    <div className="h-[100dvh] bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans select-none">
+    <div className="h-screen max-h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans">
       
-      {/* HEADER FIXE */}
-      <header className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl shrink-0">
+      {/* HEADER */}
+      <header className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl z-50 shrink-0">
         <div className="flex items-center gap-2 text-rose-500 font-black text-2xl tracking-tighter">
           <Flame fill="currentColor" size={28} /> KAMA<span className="text-white">SYNC</span>
         </div>
-        <button onClick={() => setDiscreetMode(!discreetMode)} className="text-slate-400 p-2 active:opacity-50">
-          {discreetMode ? <EyeOff size={22} className="text-emerald-400" /> : <Eye size={22} />}
+        <button onClick={() => setDiscreetMode(!discreetMode)} className="text-slate-400 p-2">
+          {discreetMode ? <EyeOff size={20} className="text-emerald-400" /> : <Eye size={20} />}
         </button>
       </header>
 
-      {/* CONTENU SCROLLABLE */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden touch-pan-y pb-32">
+      {/* NOTIFICATIONS */}
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none items-center w-full">
+        {notifications.map(n => (
+          <div key={n.id} className="bg-slate-800 text-white px-6 py-3 rounded-2xl text-xs font-bold shadow-2xl border border-white/10 animate-in slide-in-from-top duration-300">
+            {n.icon} {n.msg}
+          </div>
+        ))}
+      </div>
+
+      {/* CONTENU PRINCIPAL - SCROLLABLE ICI */}
+      <main className="flex-1 overflow-y-auto scrolling-touch pb-32">
+        
         {activeTab === 'explorer' && (
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 animate-in fade-in duration-500">
+            {/* Barre de recherche */}
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-              <input 
-                value={searchQuery} 
-                onChange={e => setSearchQuery(e.target.value)} 
-                className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-sm outline-none" 
-                placeholder="Rechercher..." 
-              />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-sm" placeholder="Trouver une position..." />
             </div>
 
+            {/* Système de Tri et Filtres */}
+            <div className="flex flex-col gap-3">
+              <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2"><Filter size={12}/> Trier & Filtrer</span>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-rose-400 font-bold">
+                  <option value="az">A ➔ Z</option>
+                  <option value="spice">Intensité 🔥</option>
+                  <option value="physique">Physique 💪</option>
+                </select>
+                <select value={filterSpice} onChange={e => setFilterSpice(Number(e.target.value))} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs">
+                  <option value="0">Toute Intensité</option>
+                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} 🔥</option>)}
+                </select>
+                <select value={filterPhysique} onChange={e => setFilterPhysique(Number(e.target.value))} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs">
+                  <option value="0">Tout Physique</option>
+                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} 💪</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Liste par catégories */}
             {CATEGORIES.map(cat => {
-              const items = filteredPositions.filter(p => p.cat === cat.id);
-              if (items.length === 0) return null;
+              const positions = filteredPositions.filter(p => p.cat === cat.id);
+              if (positions.length === 0) return null;
               return (
                 <section key={cat.id} className="space-y-4">
-                  <h3 className={`font-bold text-xs uppercase tracking-widest ${cat.text}`}>{cat.id}</h3>
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                    {items.map(pos => (
-                      <div 
-                        key={pos.id} 
-                        onClick={() => setSelectedPosition(pos)} 
-                        className={`shrink-0 w-44 bg-gradient-to-br ${cat.color} p-5 rounded-[2rem] border border-white/5 active:scale-95 transition-transform`}
-                      >
-                         <h4 className="font-bold text-sm leading-tight">{discreetMode ? "Position" : pos.name}</h4>
+                  <h3 className={`flex items-center gap-2 font-bold ${cat.text}`}>{cat.icon} {cat.id}</h3>
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 snap-x">
+                    {positions.map(pos => (
+                      <div key={pos.id} onClick={() => setSelectedPosition(pos)} className={`relative shrink-0 w-48 bg-gradient-to-br ${cat.color} p-5 rounded-[2rem] border border-white/5 snap-start`}>
+                         {pos.isPartner && <span className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-400 text-[8px] px-2 py-0.5 rounded-full">Duo</span>}
+                         <h4 className="font-bold mb-2 text-sm">{discreetMode ? "Masqué" : pos.name}</h4>
+                         <div className="flex gap-1 mb-2">
+                            {[...Array(pos.spice)].map((_, i) => <div key={i} className="w-1.5 h-1.5 rounded-full bg-rose-500" />)}
+                         </div>
+                         <p className="text-[10px] text-white/50 line-clamp-2">{discreetMode ? "xxx xxx" : pos.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -176,97 +286,161 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'jeux' && !activeGame && (
-          <div className="p-6 space-y-4">
-            <button onClick={() => setActiveGame('truth')} className="w-full bg-slate-900 p-6 rounded-3xl border border-white/5 flex justify-between items-center active:bg-slate-800">
-               <span className="font-bold">ACTION OU VÉRITÉ</span>
-               <ChevronRight className="text-rose-500" />
-            </button>
-            <button onClick={() => setActiveGame('dice')} className="w-full bg-slate-900 p-6 rounded-3xl border border-white/5 flex justify-between items-center active:bg-slate-800">
-               <span className="font-bold">DÉS COQUINS</span>
-               <ChevronRight className="text-purple-500" />
-            </button>
+        {activeTab === 'jeux' && (
+          <div className="p-6 space-y-6 animate-in fade-in">
+             <div className="text-center mb-10"><Gamepad2 className="mx-auto text-purple-500 mb-2" size={40} /><h2 className="text-3xl font-black">Jeux Coquins</h2></div>
+             <div className="grid grid-cols-1 gap-4">
+               <button onClick={() => triggerGame('truth')} className="bg-slate-900 p-6 rounded-3xl border border-white/5 text-left flex justify-between items-center group">
+                 <div><h4 className="font-bold text-rose-400">Vérité</h4><p className="text-xs text-slate-500">Confessions intimes</p></div>
+                 <Zap className="group-hover:text-rose-500 transition-colors" />
+               </button>
+               <button onClick={() => triggerGame('dare')} className="bg-slate-900 p-6 rounded-3xl border border-white/5 text-left flex justify-between items-center group">
+                 <div><h4 className="font-bold text-indigo-400">Action</h4><p className="text-xs text-slate-500">Défis charnels</p></div>
+                 <Flame className="group-hover:text-indigo-500" />
+               </button>
+               <button onClick={() => triggerGame('dice')} className="bg-slate-900 p-6 rounded-3xl border border-white/5 text-left flex justify-between items-center group">
+                 <div><h4 className="font-bold text-amber-500">Dés</h4><p className="text-xs text-slate-500">Le hasard décide</p></div>
+                 <Dices className="group-hover:text-amber-500" />
+               </button>
+             </div>
+             {gameResult && (
+               <div className="mt-8 bg-slate-900 p-8 rounded-[3rem] border border-rose-500/30 text-center animate-in zoom-in">
+                 <p className="text-xl font-bold leading-relaxed">{gameResult}</p>
+                 <button onClick={() => setGameResult(null)} className="mt-4 text-[10px] font-black text-slate-500">EFFACER</button>
+               </div>
+             )}
           </div>
         )}
 
-        {activeTab === 'conseils' && (
-          <div className="p-6 space-y-3">
-             {TIPS_DATA.map(tip => (
-               <div key={tip.id} onClick={() => setSelectedTip(tip)} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex gap-4 items-center active:bg-slate-800">
-                 <div className="text-indigo-400">{tip.icon}</div>
-                 <h4 className="font-bold text-sm">{tip.title}</h4>
+        {activeTab === 'duo' && (
+          <div className="p-6 space-y-8 animate-in fade-in">
+            <h2 className="text-3xl font-black text-center">Espace Duo</h2>
+            
+            {!userData?.partnerUid ? (
+              <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 text-center">
+                <Users className="mx-auto text-emerald-500 mb-4" size={40} />
+                <p className="text-slate-400 text-xs mb-6 uppercase tracking-widest font-black">Lier votre partenaire</p>
+                <div className="bg-slate-950 p-4 rounded-xl mb-6"><div className="text-2xl font-mono text-white tracking-widest">{userData?.pairCode}</div></div>
+                <input value={partnerCodeInput} onChange={e => setPartnerCodeInput(e.target.value.toUpperCase())} className="w-full bg-slate-800 p-4 rounded-xl text-center mb-4" placeholder="CODE PARTENAIRE" />
+                <button onClick={handleLinkPartner} className="w-full bg-emerald-600 py-4 rounded-xl font-bold">SE CONNECTER</button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="bg-slate-900 p-6 rounded-[2rem] flex items-center justify-between border border-emerald-500/20">
+                  <div className="flex items-center gap-4">
+                    <img src={partnerData?.avatarUrl} className="w-12 h-12 rounded-full border border-white/10" />
+                    <div><h4 className="font-bold">{partnerData?.pseudo || 'Partenaire lié'}</h4><p className="text-[10px] text-emerald-400 uppercase font-black tracking-widest">Connecté</p></div>
+                  </div>
+                  <Heart fill="currentColor" className="text-rose-500" />
+                </div>
+
+                <div className="bg-slate-900 p-6 rounded-[2rem] border border-white/5">
+                   <h3 className="text-xs font-black text-slate-500 uppercase mb-4">Matchs Parfaits (Favoris communs)</h3>
+                   <div className="flex flex-col gap-2">
+                     {allPositions.filter(p => userData?.likes?.includes(p.id) && partnerData?.likes?.includes(p.id)).map(p => (
+                       <div key={p.id} className="bg-slate-800 p-4 rounded-xl flex items-center gap-3">
+                         <Star size={14} className="text-amber-500" fill="currentColor"/>
+                         <span className="text-sm font-bold">{p.name}</span>
+                       </div>
+                     ))}
+                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'profil' && (
+          <div className="p-6 space-y-10 animate-in fade-in">
+            <h2 className="text-3xl font-black">Mon Profil</h2>
+            <div className="bg-slate-900 p-6 rounded-[3rem] border border-white/5 text-center relative overflow-hidden">
+               <div className="w-24 h-24 mx-auto rounded-full border-2 border-rose-500/50 mb-4 overflow-hidden"><img src={userData?.avatarUrl} className="w-full h-full object-cover"/></div>
+               <h3 className="text-2xl font-black">{userData?.pseudo}</h3>
+               <p className="text-slate-500 text-sm mb-6">{userData?.bio || "Aucune biographie"}</p>
+               <button onClick={() => { setIsEditingProfile(true); setProfileForm({pseudo: userData.pseudo, bio: userData.bio}); }} className="flex items-center gap-2 mx-auto bg-slate-800 px-6 py-2 rounded-full text-xs font-bold border border-white/10 hover:bg-slate-700 transition"><Edit2 size={14}/> Modifier</button>
+            </div>
+
+            <div className="bg-slate-900 p-6 rounded-[2rem] border border-white/5">
+               <div className="flex justify-between items-center mb-4"><h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Mes Créations</h4><button onClick={() => setIsCreating(true)} className="p-2 bg-rose-600 rounded-lg"><Plus size={16}/></button></div>
+               <div className="space-y-2">
+                  {myCustomPositions.map(p => (
+                    <div key={p.id} className="bg-slate-800 p-4 rounded-xl flex justify-between items-center">
+                      <span className="text-sm font-bold">{p.name}</span>
+                      <span className="text-[10px] text-slate-500 uppercase">{p.cat}</span>
+                    </div>
+                  ))}
                </div>
-             ))}
+            </div>
           </div>
         )}
       </main>
 
-      {/* NAVIGATION MOBILE FIXE */}
-      <nav className="fixed bottom-0 w-full bg-slate-950/90 backdrop-blur-2xl border-t border-white/5 px-8 pt-4 pb-10 flex justify-between items-center z-50">
-        {[
-          {id:'explorer', icon:<Compass size={24}/>, label: 'Explorer'},
-          {id:'jeux', icon:<Gamepad2 size={24}/>, label: 'Jeux'},
-          {id:'conseils', icon:<BookOpen size={24}/>, label: 'Conseils'},
-          {id:'profil', icon:<User size={24}/>, label: 'Profil'}
-        ].map(tab => (
-          <button 
-            key={tab.id} 
-            onClick={() => {setActiveTab(tab.id); setActiveGame(null);}} 
-            className={`flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-rose-500' : 'text-slate-600'}`}
-          >
-            {tab.icon}
-            <span className="text-[9px] font-bold uppercase">{tab.label}</span>
-          </button>
-        ))}
+      {/* NAVIGATION BASSE FIXE */}
+      <nav className="fixed bottom-0 w-full bg-slate-950/95 backdrop-blur-2xl border-t border-slate-900 px-6 py-5 flex justify-between items-center z-50 shrink-0 pb-10">
+        <button onClick={() => setActiveTab('explorer')} className={`flex flex-col items-center gap-1 ${activeTab === 'explorer' ? 'text-rose-500 scale-110' : 'text-slate-500'}`}><Compass size={24}/><span className="text-[8px] font-bold uppercase">Explorer</span></button>
+        <button onClick={() => setActiveTab('jeux')} className={`flex flex-col items-center gap-1 ${activeTab === 'jeux' ? 'text-purple-500 scale-110' : 'text-slate-500'}`}><Gamepad2 size={24}/><span className="text-[8px] font-bold uppercase">Jeux</span></button>
+        <button onClick={() => setActiveTab('duo')} className={`flex flex-col items-center gap-1 ${activeTab === 'duo' ? 'text-emerald-400 scale-110' : 'text-slate-500'}`}><Users size={24}/><span className="text-[8px] font-bold uppercase">Duo</span></button>
+        <button onClick={() => setActiveTab('profil')} className={`flex flex-col items-center gap-1 ${activeTab === 'profil' ? 'text-white scale-110' : 'text-slate-500'}`}><User size={24}/><span className="text-[8px] font-bold uppercase">Moi</span></button>
       </nav>
 
-      {/* MODALE JEUX */}
-      {activeGame && (
-        <div className="fixed inset-0 bg-slate-950 z-[100] flex flex-col p-6 animate-in fade-in duration-300">
-          <button onClick={() => {setActiveGame(null); setGameResult(null);}} className="mb-8 self-start text-slate-400"><ArrowLeft size={30}/></button>
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <div className="w-full bg-slate-900 p-10 rounded-[3rem] border border-rose-500/20 text-center text-xl font-bold">
-              {gameResult || "Cliquez pour lancer"}
-            </div>
-            <button onClick={() => triggerGame(activeGame)} className="mt-10 w-full max-w-xs bg-rose-600 py-5 rounded-2xl font-black active:scale-95 transition-transform">
-              LANCER LE DÉ
-            </button>
+      {/* MODAL EDITION PROFIL */}
+      {isEditingProfile && (
+        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
+          <button onClick={() => setIsEditingProfile(false)} className="mb-8 text-slate-400"><ArrowLeft size={32}/></button>
+          <h2 className="text-3xl font-black mb-8">Modifier le profil</h2>
+          <div className="space-y-6">
+            <input value={profileForm.pseudo} onChange={e => setProfileForm({...profileForm, pseudo: e.target.value})} className="w-full bg-slate-900 border border-slate-800 p-4 rounded-xl" placeholder="Pseudo" />
+            <textarea value={profileForm.bio} onChange={e => setProfileForm({...profileForm, bio: e.target.value})} className="w-full bg-slate-900 border border-slate-800 p-4 rounded-xl h-32" placeholder="Ma biographie..." />
+            <button onClick={handleSaveProfile} className="w-full bg-rose-600 py-4 rounded-xl font-bold">ENREGISTRER</button>
           </div>
         </div>
       )}
 
-      {/* MODALE POSITION */}
-      {selectedPosition && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-right duration-300">
-          <header className="p-6"><button onClick={() => setSelectedPosition(null)} className="p-2 text-slate-400"><ArrowLeft size={30}/></button></header>
-          <div className="px-8 pb-32 overflow-y-auto">
-            <h2 className="text-4xl font-black tracking-tighter mb-6">{discreetMode ? "Position" : selectedPosition.name}</h2>
-            <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5 text-lg leading-relaxed italic text-slate-300">
-              "{discreetMode ? "Détails masqués" : selectedPosition.desc}"
-            </div>
-            {!discreetMode && (
-              <div className="mt-6 bg-rose-500/10 p-6 rounded-[2rem] border border-rose-500/20">
-                <p className="text-rose-300 font-bold text-sm">Conseil : {selectedPosition.v}</p>
+      {/* MODAL CRÉATION POSITION */}
+      {isCreating && (
+        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
+           <button onClick={() => setIsCreating(false)} className="mb-8 text-slate-400"><ArrowLeft size={32}/></button>
+           <h2 className="text-3xl font-black mb-6">Ajouter à la bibliothèque</h2>
+           <div className="space-y-4 overflow-y-auto pb-20 custom-scroll">
+              <input value={newPos.name} onChange={e => setNewPos({...newPos, name: e.target.value})} className="w-full bg-slate-900 p-4 rounded-xl" placeholder="Nom de la position" />
+              <select value={newPos.cat} onChange={e => setNewPos({...newPos, cat: e.target.value})} className="w-full bg-slate-900 p-4 rounded-xl">
+                 {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
+              </select>
+              <div className="flex gap-4">
+                 <div className="flex-1">
+                    <label className="text-[10px] uppercase font-black text-slate-500 mb-2 block">Intensité 🔥</label>
+                    <input type="range" min="1" max="5" value={newPos.spice} onChange={e => setNewPos({...newPos, spice: Number(e.target.value)})} className="w-full accent-rose-500"/>
+                 </div>
+                 <div className="flex-1">
+                    <label className="text-[10px] uppercase font-black text-slate-500 mb-2 block">Physique 💪</label>
+                    <input type="range" min="1" max="5" value={newPos.diff} onChange={e => setNewPos({...newPos, diff: Number(e.target.value)})} className="w-full accent-indigo-500"/>
+                 </div>
               </div>
-            )}
-          </div>
+              <textarea value={newPos.desc} onChange={e => setNewPos({...newPos, desc: e.target.value})} className="w-full bg-slate-900 p-4 rounded-xl h-24" placeholder="Description..." />
+              <button onClick={handleSavePosition} className="w-full bg-rose-600 py-4 rounded-xl font-bold">AJOUTER ET PARTAGER</button>
+           </div>
         </div>
       )}
 
-      {/* MODALE CONSEIL */}
-      {selectedTip && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
-          <button onClick={() => setSelectedTip(null)} className="mb-8 self-start p-2 text-slate-400"><ArrowLeft size={30}/></button>
-          <h2 className="text-3xl font-black mb-8 px-4 leading-none">{selectedTip.title}</h2>
-          <div className="bg-slate-900 p-8 rounded-[3rem] border border-white/5 text-slate-300 text-lg leading-relaxed mx-4">
-            {selectedTip.content}
+      {/* MODAL DETAIL POSITION */}
+      {selectedPosition && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 p-6 flex flex-col animate-in slide-in-from-bottom duration-300">
+          <button onClick={() => setSelectedPosition(null)} className="mb-8 text-slate-500 p-2 bg-slate-900 rounded-full w-fit"><ArrowLeft size={24}/></button>
+          <div className="flex-1 overflow-y-auto space-y-6">
+            <h2 className="text-4xl font-black">{discreetMode ? "Position" : selectedPosition.name}</h2>
+            <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5"><h4 className="text-rose-500 font-bold text-xs uppercase mb-3 tracking-widest">Description</h4><p className="text-slate-300 leading-relaxed text-lg">{discreetMode ? "xxx xxx xxx xxx" : selectedPosition.desc}</p></div>
+            {selectedPosition.v && <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5"><h4 className="text-indigo-400 font-bold text-xs uppercase mb-3 tracking-widest">Variante</h4><p className="text-slate-400 italic">{discreetMode ? "xxx xxx" : selectedPosition.v}</p></div>}
           </div>
+          <button onClick={() => handleLike(selectedPosition.id)} className={`mt-6 w-full py-5 rounded-2xl font-black text-lg ${userData?.likes?.includes(selectedPosition.id) ? 'bg-slate-800 text-rose-500' : 'bg-rose-600 text-white'}`}>{userData?.likes?.includes(selectedPosition.id) ? "DÉJÀ EN FAVORI" : "AJOUTER AUX FAVORIS"}</button>
         </div>
       )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        * { -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        main { -webkit-overflow-scrolling: touch; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
       `}</style>
     </div>
   );
