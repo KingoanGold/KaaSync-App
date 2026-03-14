@@ -4,7 +4,8 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { 
   getFirestore, doc, setDoc, collection, 
-  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc
+  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc,
+  query, where, getDocs // <-- AJOUTS IMPORTANTS ICI
 } from 'firebase/firestore';
 import { 
   Heart, Flame, Plus, Sparkles, ChevronRight, 
@@ -210,7 +211,7 @@ const POSITIONS_DATA = [
   { n: "Le Noeud amoureux", c: "De côté", d: 3, s: 3, desc: "Face à face sur le côté, chaque partenaire enlace ses jambes autour des cuisses de l'autre. Une véritable fusion des corps difficile à dénouer.", v: "Variante : Balancez doucement vos corps d'avant en arrière de façon synchronisée." },
   { n: "L'Étoile Filante", c: "De côté", d: 2, s: 3, desc: "Le partenaire A est sur le dos. Le partenaire B est allongé sur le côté, formant un T parfait avec le corps de A.", v: "Variante : B glisse une main sous le creux des reins de A pour créer une légère cambrure." },
   { n: "Le Poteau", c: "Debout & Acrobatique", d: 4, s: 4, desc: "Le receveur se tient debout, le dos fermement plaqué contre un mur. Le partenaire actif se tient debout face à lui pour la pénétration.", v: "Variante : Le receveur lève une jambe et l'enroule autour de la hanche du partenaire." },
-  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Le partenaire debout porte entièrement l'autre partenaire. Le porté enroule ses jambes autour de la taille du porteur et s'agrippe à son cou.", v: "Variante : Le porteur peut s'adosser à un mur pour soulager le poids sur son dos." },
+  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Le partenaire debout porte entièrement l'autre partenaire. Le porté en enroule ses jambes autour de la taille du porteur et s'agrippe à son cou.", v: "Variante : Le porteur peut s'adosser à un mur pour soulager le poids sur son dos." },
   { n: "Le Rocking-chair", c: "Debout & Acrobatique", d: 3, s: 3, desc: "Le partenaire actif est assis sur une chaise solide. Le receveur s'assoit à califourchon face à lui. Mouvements de va-et-vient horizontaux.", v: "Variante : Le receveur pose ses pieds à plat sur l'assise pour rebondir." },
   { n: "La Balançoire", c: "Debout & Acrobatique", d: 4, s: 4, desc: "Le receveur s'assoit sur un meuble haut (machine à laver, commode). Le partenaire se tient debout entre ses jambes écartées.", v: "Variante : Le receveur s'allonge en arrière sur le meuble, la tête dans le vide." },
   { n: "Le Stand and Deliver", c: "Debout & Acrobatique", d: 3, s: 4, desc: "Le receveur s'allonge sur une table solide, les fesses au ras du bord. Le partenaire actif est debout sur le sol.", v: "Variante : Le partenaire debout soulève les jambes du receveur et les pose sur ses épaules." },
@@ -574,14 +575,46 @@ export default function App() {
     notify("Création supprimée", "🗑️");
   };
 
+  // --- RECHERCHE ET LIAISON DU PARTENAIRE ICI ---
   const handleLinkPartner = async () => {
     if (!partnerCodeInput || partnerCodeInput.length !== 6) {
       notify("Code invalide", "❌");
       return;
     }
-    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-    await updateDoc(userRef, { partnerUid: partnerCodeInput });
-    notify("Liaison envoyée !", "🔗");
+    
+    try {
+      // 1. On cherche l'utilisateur qui a ce code à 6 lettres
+      const usersRef = collection(db, 'artifacts', appId, 'users');
+      const q = query(usersRef, where("pairCode", "==", partnerCodeInput));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        notify("Code introuvable", "❌");
+        return;
+      }
+
+      const partnerDoc = querySnapshot.docs[0];
+      const actualPartnerUid = partnerDoc.id; // Le vrai UID Firebase de l'autre personne
+
+      if (actualPartnerUid === user.uid) {
+         notify("Vous ne pouvez pas vous lier à vous-même", "⚠️");
+         return;
+      }
+
+      // 2. On lie MON compte au sien
+      const myRef = doc(db, 'artifacts', appId, 'users', user.uid);
+      await updateDoc(myRef, { partnerUid: actualPartnerUid });
+
+      // 3. On lie SON compte au mien (pour que la synchronisation soit instantanée des deux côtés)
+      const partnerRef = doc(db, 'artifacts', appId, 'users', actualPartnerUid);
+      await updateDoc(partnerRef, { partnerUid: user.uid });
+
+      notify("Liaison réussie !", "🔗");
+      setPartnerCodeInput('');
+    } catch (error) {
+      console.error(error);
+      notify("Erreur lors de la liaison", "❌");
+    }
   };
 
   const applyDiscreet = (text, type = 'desc') => discreetMode ? (type === 'title' ? "Masqué" : text.replace(/[a-zA-Z]/g, "x")) : text;
@@ -1211,88 +1244,4 @@ export default function App() {
             <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-2xl">
                <div>
                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Visibilité</span>
-                 <span className={`text-sm font-bold ${newPos.shared ? 'text-emerald-400' : 'text-slate-400'}`}>
-                   {newPos.shared ? 'Partagée avec mon partenaire' : 'Privée (Moi uniquement)'}
-                 </span>
-               </div>
-               <button 
-                 onClick={() => setNewPos({...newPos, shared: !newPos.shared})} 
-                 className={`w-14 h-8 rounded-full relative transition-colors ${newPos.shared ? 'bg-emerald-500' : 'bg-slate-700'}`}
-               >
-                 <div className={`w-6 h-6 rounded-full bg-white absolute top-1 transition-transform ${newPos.shared ? 'translate-x-7' : 'translate-x-1'}`}/>
-               </button>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nom de la position</label>
-              <input className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base" placeholder="Ex: Le Volcan..." value={newPos.name} onChange={(e) => setNewPos({...newPos, name: e.target.value})} />
-            </div>
-
-            {/* SELECTION CATÉGORIE + NOUVELLE */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Catégorie</label>
-              <select className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base appearance-none" value={newPos.cat} onChange={(e) => setNewPos({...newPos, cat: e.target.value})}>
-                {displayCategories.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
-                <option value="NEW">+ Créer une nouvelle catégorie...</option>
-              </select>
-              
-              {newPos.cat === 'NEW' && (
-                <div className="mt-3 animate-in fade-in slide-in-from-top-2">
-                  <input className="w-full bg-indigo-900/20 border border-indigo-500/50 focus:border-indigo-400 p-4 rounded-2xl outline-none text-indigo-300 text-base placeholder:text-indigo-900/50" placeholder="Nom de votre nouvelle catégorie" value={newPos.newCat} onChange={(e) => setNewPos({...newPos, newCat: e.target.value})} autoFocus />
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Physique ({newPos.diff}/5)</label>
-                <input type="range" min="1" max="5" value={newPos.diff} onChange={(e) => setNewPos({...newPos, diff: parseInt(e.target.value)})} className="w-full accent-indigo-500" />
-              </div>
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Intensité ({newPos.spice}/5)</label>
-                <input type="range" min="1" max="5" value={newPos.spice} onChange={(e) => setNewPos({...newPos, spice: parseInt(e.target.value)})} className="w-full accent-rose-500" />
-              </div>
-            </div>
-            
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Description de la Posture</label>
-              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-5 rounded-2xl outline-none h-32 text-base leading-relaxed text-slate-300 resize-none" placeholder="Décrivez comment se placer..." value={newPos.desc} onChange={(e) => setNewPos({...newPos, desc: e.target.value})} />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variante (Optionnel)</label>
-              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 p-5 rounded-2xl outline-none h-24 text-base leading-relaxed text-slate-300 resize-none" placeholder="Une astuce ou variante pour pimenter..." value={newPos.v} onChange={(e) => setNewPos({...newPos, v: e.target.value})} />
-            </div>
-
-          </div>
-          <div className="p-6 bg-slate-950 border-t border-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
-             <button onClick={handleSavePosition} className="w-full bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all active:scale-[0.98]">
-               {editPosId ? 'Enregistrer les modifications' : (newPos.shared ? 'Créer et Partager' : 'Créer Secrètement')}
-             </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TIP */}
-      {selectedTip && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
-          <header className="px-6 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => setSelectedTip(null)} className="text-slate-400 bg-slate-800 p-2 rounded-full hover:bg-slate-700 transition"><ArrowLeft size={20}/></button>
-          </header>
-          <div className="flex-1 overflow-y-auto px-6 py-8 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
-             <h2 className="text-3xl font-black text-white mb-6 leading-tight">{selectedTip.title}</h2>
-             <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">{selectedTip.content}</div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-      `}</style>
-    </div>
-  );
-}
+                 <span className={`text-sm font-bold ${newPos.shared ? '
