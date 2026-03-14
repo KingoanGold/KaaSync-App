@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { 
   getFirestore, doc, setDoc, collection, 
   onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc
@@ -54,7 +54,7 @@ const MOODS = [
   { id: 'tired', label: 'Pas ce soir', icon: '💤', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' }
 ];
 
-// --- DONNÉES JEUX ---
+// --- DONNÉES JEUX COQUINS ---
 const GAMES_DATA = {
   truths: [
     "Quel est ton fantasme le plus inavoué ?", "Quelle partie de mon corps préfères-tu ?", "Raconte-moi le rêve le plus érotique que tu aies fait.",
@@ -89,17 +89,24 @@ const GAMES_DATA = {
   ]
 };
 
-// --- DONNÉES CONSEILS ET POSITIONS ---
+// --- DONNÉES CONSEILS ---
 const TIPS_DATA = [
   { id: 't1', title: "Le consentement", cat: "Communication", icon: <Shield/>, time: "2 min", content: "Le consentement n'est pas juste un 'oui' au début, c'est un dialogue continu..." },
-  { id: 't2', title: "La Musique idéale", cat: "Sensorielles", icon: <Music/>, time: "4 min", content: "La musique peut transformer une expérience banale..." }
+  { id: 't2', title: "La Musique idéale", cat: "Sensorielles", icon: <Music/>, time: "4 min", content: "Cherchez des musiques entre 60 et 80 BPM pour synchroniser les corps..." },
+  { id: 't3', title: "Positions debout", cat: "Pratique", icon: <Wind/>, time: "3 min", content: "Utilisez un meuble comme appui de départ pour soulager votre dos." },
+  { id: 't4', title: "L'Aftercare", cat: "Émotionnel", icon: <Heart/>, time: "3 min", content: "Restez enlacés quelques minutes en silence après l'acte." }
 ];
 
+// --- DONNÉES POSITIONS ---
 const POSITIONS_DATA = [
-  { n: "Le Missionnaire", c: "Face à face", d: 1, s: 1, desc: "Position classique favorisant l'intimité et les baisers.", v: "Variante : Serrez les jambes pour plus de friction." },
-  { n: "La Levrette", c: "Par derrière", d: 2, s: 4, desc: "Le receveur à quatre pattes, offre une pénétration profonde.", v: "Variante : Appui sur les avant-bras." },
-  { n: "L'Andromaque", c: "Au-dessus", d: 2, s: 3, desc: "Le partenaire du dessus contrôle l'intensité.", v: "Variante : Face au partenaire ou dos tourné." }
-  // ... Tu peux rajouter toutes les positions ici
+  { n: "Le Missionnaire", c: "Face à face", d: 1, s: 1, desc: "Position classique favorisant l'intimité et les baisers.", v: "Variante : Placez un coussin sous les hanches." },
+  { n: "L'Enclume", c: "Face à face", d: 3, s: 4, desc: "Sur le dos, ramenez les genoux vers les oreilles.", v: "Variante : Attrapez les chevilles." },
+  { n: "La Levrette", c: "Par derrière", d: 2, s: 4, desc: "À quatre pattes, dos cambré. Profondeur maximale.", v: "Variante : Appuyé sur les avant-bras (Le Sphinx)." },
+  { n: "Le Sphinx", c: "Par derrière", d: 2, s: 3, desc: "Une levrette où le receveur descend sur les avant-bras.", v: "Variante : Poitrine collée au matelas." },
+  { n: "Andromaque", c: "Au-dessus", d: 2, s: 3, desc: "Assis à califourchon, le partenaire du dessus contrôle tout.", v: "Variante : Penché en avant pour s'enlacer." },
+  { n: "La Cuillère", c: "De côté", d: 1, s: 2, desc: "Allongés sur le flanc, emboîtés. Très tendres.", v: "Variante : Le partenaire arrière masse le torse." },
+  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "L'un porte l'autre contre un mur ou au milieu de la pièce.", v: "Variante : S'adosser à un mur pour stabiliser." },
+  { n: "Le 69 Classique", c: "Oral & Préliminaires", d: 2, s: 5, desc: "Tête-bêche pour une stimulation mutuelle.", v: "Variante : Réalisé sur le côté pour moins de fatigue." }
 ];
 
 const FULL_CATALOG = POSITIONS_DATA.map((p, i) => ({
@@ -143,9 +150,9 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     const userRef = doc(db, 'users', user.uid);
-    let unsubPartner = () => {};
+    let unsubPartnerCustom = () => {};
 
-    const unsubUser = onSnapshot(userRef, (snap) => {
+    onSnapshot(userRef, (snap) => {
       if (!snap.exists()) {
         const initial = { 
           uid: user.uid, pseudo: 'Anonyme', bio: 'Explorateur...', 
@@ -167,8 +174,21 @@ export default function App() {
       setLoading(false);
     });
 
-    return () => { unsubUser(); unsubPartner(); };
+    const myCol = collection(db, 'users', user.uid, 'customPositions');
+    onSnapshot(myCol, (s) => setMyCustomPositions(s.docs.map(d => ({ id: d.id, ...d.data(), isMine: true }))));
+
+    return () => { unsubPartnerCustom(); };
   }, [user]);
+
+  const allPositions = useMemo(() => [...FULL_CATALOG, ...myCustomPositions, ...partnerCustomPositions], [myCustomPositions, partnerCustomPositions]);
+
+  const triggerGameResult = (type) => {
+    let result = "";
+    if (type === 'truth') result = GAMES_DATA.truths[Math.floor(Math.random() * GAMES_DATA.truths.length)];
+    if (type === 'dare') result = GAMES_DATA.dares[Math.floor(Math.random() * GAMES_DATA.dares.length)];
+    if (type === 'dice') result = `${GAMES_DATA.diceActions[Math.floor(Math.random() * 9)]} ${GAMES_DATA.diceZones[Math.floor(Math.random() * 9)]}`;
+    setGameResult(result);
+  };
 
   const notify = (msg, icon = '✨') => {
     const id = Date.now();
@@ -176,12 +196,12 @@ export default function App() {
     setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4000);
   };
 
-  const allPositions = useMemo(() => [...FULL_CATALOG, ...myCustomPositions, ...partnerCustomPositions], [myCustomPositions, partnerCustomPositions]);
-
   if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center text-rose-500"><Flame className="animate-pulse" size={48} /></div>;
 
   return (
     <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans">
+      
+      {/* HEADER */}
       <header className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl z-50">
         <div className="flex items-center gap-2 text-rose-500 font-black text-2xl tracking-tighter">
           <Flame fill="currentColor" size={28} /> KAMA<span className="text-white">SYNC</span>
@@ -191,29 +211,137 @@ export default function App() {
         </button>
       </header>
 
+      {/* NOTIFS */}
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-full px-4 items-center">
+        {notifications.map(n => (
+          <div key={n.id} className="bg-slate-800/90 text-white px-6 py-3 rounded-2xl text-xs font-bold border border-white/10 shadow-2xl">
+            {n.icon} {n.msg}
+          </div>
+        ))}
+      </div>
+
       <main className="flex-1 overflow-y-auto pb-32">
-        {/* Contenu de l'App (Tabs) */}
         {activeTab === 'explorer' && (
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">Explorer</h2>
+          <div className="p-6 space-y-8 animate-in fade-in duration-500">
+            <h2 className="text-3xl font-black">Catalogue</h2>
             <div className="grid grid-cols-1 gap-4">
               {allPositions.map(pos => (
-                <div key={pos.id} className="bg-slate-900 p-4 rounded-2xl border border-white/5" onClick={() => setSelectedPosition(pos)}>
-                  <h3 className="font-bold">{discreetMode ? "Masqué" : pos.name}</h3>
-                  <p className="text-xs text-slate-400">{pos.cat}</p>
+                <div key={pos.id} onClick={() => setSelectedPosition(pos)} className="bg-slate-900 p-5 rounded-3xl border border-white/5 hover:border-rose-500/50 transition">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] font-black uppercase text-rose-500 tracking-widest">{pos.cat}</span>
+                    <Heart size={14} className={userData?.likes?.includes(pos.id) ? "text-rose-500 fill-current" : "text-slate-700"} />
+                  </div>
+                  <h3 className="font-bold text-lg">{discreetMode ? "Masqué" : pos.name}</h3>
+                  <p className="text-xs text-slate-400 line-clamp-2">{discreetMode ? "xxx xxx xxx" : pos.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
+
+        {activeTab === 'jeux' && !activeGame && (
+          <div className="p-6 space-y-4 animate-in fade-in duration-500">
+            <h2 className="text-3xl font-black mb-6">Jeux Coquins</h2>
+            <button onClick={() => setActiveGame('truthOrDare')} className="w-full bg-slate-900 p-6 rounded-3xl text-left border border-white/5 flex items-center justify-between">
+              <div><h3 className="font-bold text-rose-400">Action ou Vérité</h3><p className="text-xs text-slate-500">Défis et secrets...</p></div>
+              <Zap size={20} className="text-rose-500" />
+            </button>
+            <button onClick={() => setActiveGame('dice')} className="w-full bg-slate-900 p-6 rounded-3xl text-left border border-white/5 flex items-center justify-between">
+              <div><h3 className="font-bold text-amber-400">Dés de l'Amour</h3><p className="text-xs text-slate-500">Laissez le hasard décider...</p></div>
+              <Dices size={20} className="text-amber-500" />
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'jeux' && activeGame && (
+          <div className="p-6 flex flex-col items-center justify-center h-full text-center">
+            <button onClick={() => {setActiveGame(null); setGameResult(null);}} className="absolute top-24 left-6 text-slate-400"><ArrowLeft/></button>
+            <div className="bg-slate-900 p-10 rounded-[3rem] border border-rose-500/20 shadow-2xl mb-8 w-full max-w-sm">
+              <h2 className="text-2xl font-black mb-6 text-white">{activeGame === 'dice' ? "Dés" : "Action/Vérité"}</h2>
+              <p className="text-xl font-bold text-rose-100">{gameResult || "Prêt ?"}</p>
+            </div>
+            <div className="flex gap-4 w-full max-w-sm">
+              {activeGame === 'truthOrDare' ? (
+                <>
+                  <button onClick={() => triggerGameResult('truth')} className="flex-1 bg-indigo-600 py-4 rounded-2xl font-black">VÉRITÉ</button>
+                  <button onClick={() => triggerGameResult('dare')} className="flex-1 bg-rose-600 py-4 rounded-2xl font-black">ACTION</button>
+                </>
+              ) : (
+                <button onClick={() => triggerGameResult('dice')} className="w-full bg-amber-500 text-slate-950 py-4 rounded-2xl font-black">LANCER LES DÉS</button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'duo' && (
+          <div className="p-6 space-y-6 animate-in fade-in duration-500 text-center">
+             <h2 className="text-3xl font-black">Espace Duo</h2>
+             {!userData?.partnerUid ? (
+               <div className="bg-slate-900 p-8 rounded-[2rem] border border-white/5">
+                 <Users className="mx-auto text-emerald-500 mb-4" size={40} />
+                 <p className="text-slate-400 text-sm mb-6">Votre code de liaison :</p>
+                 <div className="text-3xl font-mono font-black text-white tracking-widest mb-8">{userData?.pairCode}</div>
+                 <input className="w-full bg-slate-800 p-4 rounded-xl text-center mb-4" placeholder="CODE PARTENAIRE" value={partnerCodeInput} onChange={(e)=>setPartnerCodeInput(e.target.value.toUpperCase())}/>
+                 <button className="w-full bg-emerald-600 py-4 rounded-xl font-bold">LIER LES COMPTES</button>
+               </div>
+             ) : (
+               <div className="bg-indigo-600 p-8 rounded-[2rem] shadow-lg">
+                 <BellRing className="mx-auto mb-4" size={40} />
+                 <h3 className="text-xl font-black">Signal Discret</h3>
+                 <p className="text-xs text-indigo-200 mb-6">Envoyez une vibration à votre partenaire</p>
+                 <button onClick={() => notify("Signal envoyé !", "💌")} className="bg-white text-indigo-600 px-8 py-3 rounded-full font-black uppercase text-[10px] tracking-widest">Je te veux</button>
+               </div>
+             )}
+          </div>
+        )}
+
+        {activeTab === 'profil' && (
+          <div className="p-6 space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-col items-center">
+              <div className="w-24 h-24 rounded-full bg-slate-800 border-4 border-slate-700 overflow-hidden mb-4">
+                <img src={userData?.avatarUrl} alt="Me" />
+              </div>
+              <h2 className="text-2xl font-black">{userData?.pseudo}</h2>
+              <button onClick={()=>setIsEditingProfile(true)} className="mt-4 text-xs font-bold text-slate-500 border border-slate-800 px-4 py-2 rounded-full">Modifier le profil</button>
+            </div>
+          </div>
+        )}
       </main>
 
+      {/* NAV */}
       <nav className="fixed bottom-0 w-full bg-slate-950/95 backdrop-blur-2xl border-t border-slate-900 px-2 py-3 flex justify-between items-center z-40">
-        <button onClick={() => setActiveTab('explorer')} className={`flex flex-col items-center gap-1 w-1/4 ${activeTab === 'explorer' ? 'text-rose-500' : 'text-slate-500'}`}><Compass size={22}/><span className="text-[8px] font-black uppercase">Catalogue</span></button>
-        <button onClick={() => setActiveTab('jeux')} className={`flex flex-col items-center gap-1 w-1/4 ${activeTab === 'jeux' ? 'text-purple-500' : 'text-slate-500'}`}><Gamepad2 size={22}/><span className="text-[8px] font-black uppercase">Jeux</span></button>
-        <button onClick={() => setActiveTab('duo')} className={`flex flex-col items-center gap-1 w-1/4 ${activeTab === 'duo' ? 'text-emerald-400' : 'text-slate-500'}`}><Users size={22}/><span className="text-[8px] font-black uppercase">Duo</span></button>
-        <button onClick={() => setActiveTab('profil')} className={`flex flex-col items-center gap-1 w-1/4 ${activeTab === 'profil' ? 'text-white' : 'text-slate-500'}`}><User size={22}/><span className="text-[8px] font-black uppercase">Moi</span></button>
+        <button onClick={() => setActiveTab('explorer')} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'explorer' ? 'text-rose-500' : 'text-slate-500'}`}><Compass size={22}/><span className="text-[8px] font-black uppercase">Catalogue</span></button>
+        <button onClick={() => setActiveTab('jeux')} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'jeux' ? 'text-purple-500' : 'text-slate-500'}`}><Gamepad2 size={24}/><span className="text-[8px] font-black uppercase">Jeux</span></button>
+        <button onClick={() => setActiveTab('duo')} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'duo' ? 'text-emerald-400' : 'text-slate-500'}`}><Users size={22}/><span className="text-[8px] font-black uppercase">Duo</span></button>
+        <button onClick={() => setActiveTab('profil')} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'profil' ? 'text-white' : 'text-slate-500'}`}><User size={22}/><span className="text-[8px] font-black uppercase">Moi</span></button>
       </nav>
+
+      {/* MODAL POSITION */}
+      {selectedPosition && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 p-6 flex flex-col animate-in slide-in-from-bottom duration-300">
+          <button onClick={() => setSelectedPosition(null)} className="text-slate-400 mb-8"><ArrowLeft/></button>
+          <div className="text-center mb-10">
+            <span className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em]">{selectedPosition.cat}</span>
+            <h2 className="text-3xl font-black mt-2">{discreetMode ? "Masqué" : selectedPosition.name}</h2>
+          </div>
+          <div className="bg-slate-900 p-8 rounded-[2rem] border border-white/5 space-y-6">
+            <h4 className="text-rose-400 text-xs font-black uppercase tracking-widest">La Position</h4>
+            <p className="text-slate-300 leading-relaxed">{discreetMode ? "xxx xxx xxx xxx" : selectedPosition.desc}</p>
+            {selectedPosition.v && (
+              <div className="pt-6 border-t border-white/5">
+                <h4 className="text-indigo-400 text-xs font-black uppercase tracking-widest mb-2">Variante</h4>
+                <p className="text-slate-400 text-sm italic">{discreetMode ? "xxx xxx" : selectedPosition.v}</p>
+              </div>
+            )}
+          </div>
+          <button onClick={()=>notify("Ajouté aux favoris")} className="mt-auto w-full bg-rose-600 py-4 rounded-2xl font-black">AJOUTER AUX FAVORIS</button>
+        </div>
+      )}
+
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 }
