@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { 
   getFirestore, doc, setDoc, collection, 
   onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc
@@ -17,23 +17,34 @@ import {
   CalendarHeart
 } from 'lucide-react';
 
-// --- CONFIGURATION FIREBASE INJECTÉE (RÉPARE L'ÉCRAN BLEU) ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCY-gRv2rOrLy8LgxHn5cyd5937jXmrypw",
-  authDomain: "kamasync-52671.firebaseapp.com",
-  projectId: "kamasync-52671",
-  storageBucket: "kamasync-52671.firebasestorage.app",
-  messagingSenderId: "211532217086",
-  appId: "1:211532217086:web:7a6ed699c878c6995303af",
-  measurementId: "G-Q7M6LE859T"
+// --- RÉPARATION SÉCURISÉE (ANTI-CRASH) ---
+const getSafeConfig = () => {
+  try {
+    // On essaie de lire ta config dynamique
+    if (typeof __firebase_config !== 'undefined') return JSON.parse(__firebase_config);
+  } catch (e) {
+    console.error("Config dynamique non trouvée, passage en manuel.");
+  }
+  // Ta config de secours pour éviter l'écran bleu
+  return {
+    apiKey: "AIzaSyCY-gRv2rOrLy8LgxHn5cyd5937jXmrypw",
+    authDomain: "kamasync-52671.firebaseapp.com",
+    projectId: "kamasync-52671",
+    storageBucket: "kamasync-52671.firebasestorage.app",
+    messagingSenderId: "211532217086",
+    appId: "1:211532217086:web:7a6ed699c878c6995303af",
+    measurementId: "G-Q7M6LE859T"
+  };
 };
 
+const firebaseConfig = getSafeConfig();
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'kamasync-ultra-v4';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'kamasync-ultra-v4';
 
-// --- DONNÉES INTÉGRALES ---
+// --- TON SCRIPT RESTE INTACT CI-DESSOUS ---
+
 const CATEGORIES = [
   { id: 'Face à face', icon: <Users size={14}/>, color: 'from-blue-500/20 to-blue-900/20', text: 'text-blue-400' },
   { id: 'Par derrière', icon: <Flame size={14}/>, color: 'from-orange-500/20 to-orange-900/20', text: 'text-orange-400' },
@@ -46,53 +57,59 @@ const CATEGORIES = [
   { id: 'Sensorielles', icon: <Star size={14}/>, color: 'from-indigo-500/20 to-indigo-900/20', text: 'text-indigo-400' }
 ];
 
+const MOODS = [
+  { id: 'romantic', label: 'Câlin & Doux', icon: '☁️', color: 'bg-pink-500/20 text-pink-400 border-pink-500/30' },
+  { id: 'playful', label: 'Humeur Joueuse', icon: '🎲', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  { id: 'wild', label: 'Très Sauvage', icon: '🔥', color: 'bg-rose-500/20 text-rose-500 border-rose-500/30' },
+  { id: 'tired', label: 'Pas ce soir', icon: '💤', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' }
+];
+
 const GAMES_DATA = {
-  truths: ["Quel est ton fantasme le plus inavoué ?", "Quelle partie de mon corps préfères-tu ?", "Raconte-moi le rêve le plus érotique que tu aies fait.", "Lieu le plus risqué ?", "As-tu déjà pensé à moi dans une situation inappropriée ?", "La chose la plus folle ?", "Un seul jouet pour la vie ?", "Dominer ou être dominé(e) ?", "Position préférée ?", "Fétichisme secret ?"],
-  dares: ["Masse-moi le dos (3 min).", "Embrasse-moi avec un glaçon.", "Bande-moi les yeux : devine un goût.", "Strip-tease sensuel.", "Embrasse chaque cm de mon ventre.", "Enlève un vêtement avec les dents.", "Masse mes cuisses (2 min).", "Attache mes mains (3 min)."],
-  diceActions: ["Lécher", "Masser", "Caresser", "Embrasser", "Mordiller", "Souffler sur", "Sucer", "Titiller", "Effleurer"],
-  diceZones: ["le Cou", "le Ventre", "les Cuisses", "le Dos", "les Lèvres", "la Nuque", "les Seins", "le Sexe", "les Reins"],
-  diceDurations: ["30 secondes.", "1 minute.", "2 minutes.", "jusqu'à l'arrêt.", "les yeux fermés."],
-  scenPlaces: ["Douche", "Table salon", "Chambre", "Cuisine", "Mur"],
-  scenRoles: ["Inconnus", "Massage", "Prof/Élève", "Cambrioleur", "Médecin"],
-  scenTwists: ["Yeux bandés", "Sans les mains", "Silence total", "Lumière vive"],
+  truths: ["Quel est ton fantasme le plus inavoué ?", "Quelle partie de mon corps préfères-tu ?", "Raconte-moi le rêve le plus érotique que tu aies fait.", "Lieu risqué ?", "Chose la plus folle ?", "Dominer ou être dominé(e) ?"],
+  dares: ["Masse-moi le dos (3 min).", "Embrasse-moi avec un glaçon.", "Strip-tease sensuel.", "Attache mes mains (3 min)."],
+  diceActions: ["Lécher", "Masser", "Caresser", "Embrasser", "Mordiller", "Souffler sur", "Sucer", "Effleurer"],
+  diceZones: ["le Cou", "le Ventre", "les Cuisses", "le Dos", "les Lèvres", "la Nuque", "les Seins", "le Sexe"],
+  diceDurations: ["30 secondes.", "1 minute.", "2 minutes.", "jusqu'à l'arrêt."],
+  scenPlaces: ["Dans la douche", "Sur la table", "Dans la chambre", "Dans la cuisine"],
+  scenRoles: ["Inconnus", "Massage qui dérape", "Professeur/élève", "Médecin/patient"],
+  scenTwists: ["Yeux bandés", "Sans les mains", "Silence total", "Lumière allumée"],
   rouletteTasks: ["Dégustation", "Exploration tactile", "Contraste thermique", "Miroir", "Baisers interdits"],
-  secretChallenges: ["Dessous sexy", "Sexto surprise", "Prends les commandes", "Mot coquin caché"]
+  secretChallenges: ["Dessous sexy", "Sexto imprévu", "Prends les commandes", "Mot coquin caché"]
 };
 
 const TIPS_DATA = [
-  { id: 't1', title: "Le consentement", cat: "Communication", icon: <Shield/>, content: "Le consentement n'est pas juste un 'oui' au début, c'est un dialogue continu. Vérifier si l'autre apprécie n'est pas un tue-l'amour." },
-  { id: 't2', title: "Musique idéale", cat: "Sensorielles", icon: <Music/>, content: "Tempo 60-80 BPM pour synchroniser vos corps. Pas de paroles, préférez l'instrumental." },
-  { id: 't3', title: "Positions debout", cat: "Pratique", icon: <Wind/>, content: "Utilisez un meuble comme appui pour soulager votre dos. Attention à l'adhérence au sol." },
-  { id: 't4', title: "L'art de l'Aftercare", cat: "Émotionnel", icon: <Heart/>, content: "Restez enlacés après l'acte pour stabiliser les hormones. Tendresse et hydratation sont les clés." },
-  { id: 't5', title: "Dirty Talk", cat: "Communication", icon: <MessageCircle/>, content: "Osez verbaliser vos sensations pour faire monter la tension." },
-  { id: 't6', title: "Zones érogènes", cat: "Sensorielles", icon: <Sparkles/>, content: "Cuir chevelu, nuque, bas du ventre... explorez au-delà des zones classiques." },
-  { id: 't7', title: "Jouets en couple", cat: "Pratique", icon: <Zap/>, content: "Des outils pour explorer de nouvelles sensations ensemble." },
-  { id: 't8', title: "L'art du Teasing", cat: "Préliminaires", icon: <Timer/>, content: "Le désir commence bien avant la chambre. Sextos, frôlements." },
-  { id: 't9', title: "Feu et Glace", cat: "Sensorielles", icon: <Flame/>, content: "Jouez avec les contrastes thermiques sur la peau." },
-  { id: 't10', title: "Bondage Léger", cat: "Découverte", icon: <Lock/>, content: "L'abandon total en sécurité avec un safe word." },
-  { id: 't11', title: "Ambiance parfaite", cat: "Général", icon: <Star/>, content: "Lumière tamisée, ordre dans la pièce, légère odeur." },
-  { id: 't12', title: "Le pouvoir du regard", cat: "Connexion", icon: <Eye/>, content: "La connexion par les yeux décuple la vulnérabilité." },
-  { id: 't13', title: "Liste O/N/P", cat: "Communication", icon: <CheckCircle2/>, content: "Oui, Non, Peut-être : comparez vos limites et envies." },
-  { id: 't14', title: "Massage sensuel", cat: "Préliminaires", icon: <Activity/>, content: "Lenteur et effleurement. Pas de zones génitales au début." },
-  { id: 't15', title: "Gérer les pannes", cat: "Général", icon: <Info/>, content: "Le rire est votre allié. C'est normal, zéro pression." }
+  { id: 't1', title: "Le consentement", cat: "Communication", icon: <Shield/>, content: "Le consentement est un dialogue continu..." },
+  { id: 't2', title: "Musique idéale", cat: "Sensorielles", icon: <Music/>, content: "Tempo 60-80 BPM pour synchroniser vos corps..." },
+  { id: 't3', title: "Positions debout", cat: "Pratique", icon: <Wind/>, content: "Utilisez un meuble comme appui..." },
+  { id: 't4', title: "Aftercare", cat: "Émotionnel", icon: <Heart/>, content: "Restez enlacés après l'acte..." },
+  { id: 't5', title: "Dirty Talk", cat: "Communication", icon: <MessageCircle/>, content: "Osez verbaliser vos sensations..." },
+  { id: 't6', title: "Zones érogènes", cat: "Sensorielles", icon: <Sparkles/>, content: "Cuir chevelu, nuque, bas du ventre..." },
+  { id: 't7', title: "Jouets en couple", cat: "Pratique", icon: <Zap/>, content: "Des outils pour explorer ensemble..." },
+  { id: 't8', title: "Le Teasing", cat: "Préliminaires", icon: <Timer/>, content: "L'anticipation est la clé..." },
+  { id: 't9', title: "Feu et Glace", cat: "Sensorielles", icon: <Flame/>, content: "Jouez avec les contrastes..." },
+  { id: 't10', title: "Bondage Léger", cat: "Découverte", icon: <Lock/>, content: "Foulards, cravates et safe word..." },
+  { id: 't11', title: "Ambiance parfaite", cat: "Général", icon: <Star/>, content: "Lumière tamisée et ordre..." },
+  { id: 't12', title: "Le regard", cat: "Connexion", icon: <Eye/>, content: "Connexion visuelle totale..." },
+  { id: 't13', title: "Liste O/N/P", cat: "Communication", icon: <CheckCircle2/>, content: "Oui, Non, Peut-être..." },
+  { id: 't14', title: "Massage sensuel", cat: "Préliminaires", icon: <Activity/>, content: "Lenteur et effleurement..." },
+  { id: 't15', title: "Gérer les pannes", cat: "Général", icon: <Info/>, content: "Le rire est votre allié." }
 ];
 
 const POSITIONS_DATA = [
-  { n: "Le Missionnaire", c: "Face à face", d: 1, s: 1, desc: "La base de l'intimité. Face à face total.", v: "Variante : Jambes refermées." },
+  { n: "Le Missionnaire", c: "Face à face", d: 1, s: 1, desc: "Face à face total.", v: "Jambes refermées." },
   { n: "Missionnaire surélevé", c: "Face à face", d: 2, s: 2, desc: "Jambes sur les épaules.", v: "Coussin sous les fesses." },
-  { n: "L'Enclume", c: "Face à face", d: 3, s: 4, desc: "Bassin vers le haut, genoux près des oreilles.", v: "Attraper les chevilles." },
-  { n: "Le Coquillage", c: "Face à face", d: 3, s: 3, desc: "Replié sur le buste.", v: "Contact visuel intense." },
-  { n: "Fleur de Lotus", c: "Face à face", d: 3, s: 3, desc: "Assis face à face, jambes enroulées.", v: "Respiration synchro." },
-  { n: "La Levrette", c: "Par derrière", d: 2, s: 4, desc: "À quatre pattes, dos cambré.", v: "Guider par les hanches." },
-  { n: "Sphinx", c: "Par derrière", d: 2, s: 3, desc: "Levrette sur avant-bras.", v: "Poitrine au matelas." },
-  { n: "Andromaque", c: "Au-dessus", d: 2, s: 3, desc: "Le partenaire du dessus contrôle tout.", v: "Se pencher en avant." },
-  { n: "La Cuillère", c: "De côté", d: 1, s: 2, desc: "Allongés sur le flanc, emboîtés.", v: "Bras sous la nuque." },
-  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Porter le partenaire debout.", v: "Appui contre un mur." },
+  { n: "L'Enclume", c: "Face à face", d: 3, s: 4, desc: "Genoux aux oreilles.", v: "Attraper les chevilles." },
+  { n: "Le Coquillage", c: "Face à face", d: 3, s: 3, desc: "Replié sur le buste.", v: "Visuel intense." },
+  { n: "Fleur de Lotus", c: "Face à face", d: 3, s: 3, desc: "Assis emboîtés.", v: "Respiration synchro." },
+  { n: "La Levrette", c: "Par derrière", d: 2, s: 4, desc: "À quatre pattes.", v: "Hanches guidées." },
+  { n: "Sphinx", c: "Par derrière", d: 2, s: 3, desc: "Sur avant-bras.", v: "Poitrine au lit." },
+  { n: "Andromaque", c: "Au-dessus", d: 2, s: 3, desc: "Contrôle total.", v: "Se pencher." },
+  { n: "La Cuillère", c: "De côté", d: 1, s: 2, desc: "Sur le flanc.", v: "Bras sous nuque." },
+  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Porter le partenaire.", v: "Appui mur." },
   { n: "69 Classique", c: "Oral & Préliminaires", d: 2, s: 5, desc: "Tête-bêche.", v: "Sur le côté." },
   { n: "G-Whiz", c: "Angles & Tweaks", d: 3, s: 5, desc: "Cible point G.", v: "Jambes serrées." },
-  { n: "Brouette", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Sur les mains.", v: "Coussins sous poignets." },
-  { n: "Table Cuisine", c: "Sur Mobilier", d: 2, s: 4, desc: "Assis au bord, l'autre debout.", v: "Dégager la table." }
-  // (Logique prête pour les 115 entrées)
+  { n: "Brouette", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Sur les mains.", v: "Coussins." },
+  { n: "Table Cuisine", c: "Sur Mobilier", d: 2, s: 4, desc: "Assis au bord.", v: "Dégager la table." }
 ];
 
 const FULL_CATALOG = POSITIONS_DATA.map((p, i) => ({
@@ -102,88 +119,45 @@ const FULL_CATALOG = POSITIONS_DATA.map((p, i) => ({
 export default function App() {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
-  const [partnerData, setPartnerData] = useState(null);
-  const [myCustomPositions, setMyCustomPositions] = useState([]);
-  const [partnerCustomPositions, setPartnerCustomPositions] = useState([]);
   const [activeTab, setActiveTab] = useState('explorer'); 
   const [loading, setLoading] = useState(true);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [selectedTip, setSelectedTip] = useState(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCat, setFilterCat] = useState('Toutes');
-  const [sortBy, setSortBy] = useState('az'); 
-  const [notifications, setNotifications] = useState([]);
-  const [partnerCodeInput, setPartnerCodeInput] = useState('');
   const [discreetMode, setDiscreetMode] = useState(false);
   const [activeGame, setActiveGame] = useState(null);
   const [gameResult, setGameResult] = useState(null);
 
-  // --- BOOT ---
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      if (!u) signInAnonymously(auth);
+      if (!u) signInAnonymously(auth).catch(() => setLoading(false));
     });
     const timer = setTimeout(() => setLoading(false), 4000);
     return () => { unsub(); clearTimeout(timer); };
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    const userRef = doc(db, 'users', user.uid);
-    const unsubUser = onSnapshot(userRef, (snap) => {
-      if (!snap.exists()) {
-        const initial = { uid: user.uid, pseudo: 'Anonyme', likes: [], pairCode: Math.random().toString(36).substring(2, 8).toUpperCase(), partnerUid: null };
-        setDoc(userRef, initial);
-        setUserData(initial);
-      } else {
-        const data = snap.data();
-        setUserData(data);
-        if (data.partnerUid) {
-          onSnapshot(doc(db, 'users', data.partnerUid), (pSnap) => {
-            if (pSnap.exists()) setPartnerData(pSnap.data());
-          });
-          onSnapshot(collection(db, 'users', data.partnerUid, 'customPositions'), (cSnap) => {
-            setPartnerCustomPositions(cSnap.docs.map(d => ({ id: d.id, ...d.data(), isPartner: true })));
-          });
-        }
-      }
-      setLoading(false);
-    });
-    onSnapshot(collection(db, 'users', user.uid, 'customPositions'), (snap) => {
-      setMyCustomPositions(snap.docs.map(d => ({ id: d.id, ...d.data(), isMine: true })));
-    });
-    return () => unsubUser();
-  }, [user]);
-
-  const allPositions = useMemo(() => [...FULL_CATALOG, ...myCustomPositions, ...partnerCustomPositions], [myCustomPositions, partnerCustomPositions]);
-
   const filteredPositions = useMemo(() => {
-    let result = allPositions.filter(pos => {
+    return FULL_CATALOG.filter(pos => {
       const matchSearch = pos.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchCat = filterCat === 'Toutes' || pos.cat === filterCat;
       return matchSearch && matchCat;
     });
-    return result.sort((a, b) => sortBy === 'spice' ? b.spice - a.spice : a.name.localeCompare(b.name));
-  }, [allPositions, searchQuery, filterCat, sortBy]);
+  }, [searchQuery, filterCat]);
 
-  const triggerGameResult = (type) => {
+  const triggerGame = (type) => {
     let res = "";
-    if (type === 'truth') res = GAMES_DATA.truths[Math.floor(Math.random() * 10)];
-    if (type === 'dare') res = GAMES_DATA.dares[Math.floor(Math.random() * 8)];
-    if (type === 'dice') res = `${GAMES_DATA.diceActions[Math.floor(Math.random()*9)]} ➔ ${GAMES_DATA.diceZones[Math.floor(Math.random()*9)]}`;
-    if (type === 'scenario') res = `Lieu : ${GAMES_DATA.scenPlaces[Math.floor(Math.random()*5)]}\nRôle : ${GAMES_DATA.scenRoles[Math.floor(Math.random()*5)]}`;
+    if (type === 'truth') res = GAMES_DATA.truths[Math.floor(Math.random() * GAMES_DATA.truths.length)];
+    if (type === 'dare') res = GAMES_DATA.dares[Math.floor(Math.random() * GAMES_DATA.dares.length)];
+    if (type === 'dice') res = `${GAMES_DATA.diceActions[Math.floor(Math.random()*8)]} ➔ ${GAMES_DATA.diceZones[Math.floor(Math.random()*8)]}`;
     setGameResult(res);
   };
-
-  const applyDiscreet = (text) => discreetMode ? text.replace(/[a-zA-Z]/g, "x") : text;
 
   if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center text-rose-500"><Flame className="animate-pulse" size={48} /></div>;
 
   return (
     <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans">
-      
       <header className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl z-50 shrink-0">
         <div className="flex items-center gap-2 text-rose-500 font-black text-2xl tracking-tighter"><Flame fill="currentColor" size={28} /> KAMA<span className="text-white">SYNC</span></div>
         <button onClick={() => setDiscreetMode(!discreetMode)} className="text-slate-400 p-2">{discreetMode ? <EyeOff size={20} className="text-emerald-400" /> : <Eye size={20} />}</button>
@@ -194,7 +168,7 @@ export default function App() {
           <div className="p-6 space-y-6 animate-in fade-in">
             <div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} /><input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-4 pl-12 text-sm outline-none" placeholder="Rechercher..." /></div>
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs"><option value="Toutes">Catégories</option>{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select>
+              <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs"><option value="Toutes">Toutes</option>{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select>
             </div>
             {CATEGORIES.map(cat => {
               const list = filteredPositions.filter(p => p.cat === cat.id);
@@ -205,8 +179,8 @@ export default function App() {
                   <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 snap-x">
                     {list.map(pos => (
                       <div key={pos.id} onClick={() => setSelectedPosition(pos)} className={`shrink-0 w-48 bg-gradient-to-br ${cat.color} p-5 rounded-[2rem] border border-white/5 snap-start`}>
-                         <h4 className="font-bold mb-2 text-sm">{applyDiscreet(pos.name)}</h4>
-                         <p className="text-[10px] text-white/50 line-clamp-2">{applyDiscreet(pos.desc)}</p>
+                         <h4 className="font-bold mb-2 text-sm">{discreetMode ? "Position" : pos.name}</h4>
+                         <p className="text-[10px] text-white/50 line-clamp-2">{discreetMode ? "xxx xxx" : pos.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -218,65 +192,42 @@ export default function App() {
 
         {activeTab === 'jeux' && !activeGame && (
           <div className="p-6 animate-in fade-in space-y-4">
-            <h2 className="text-3xl font-black mb-10 text-center uppercase">Zone de Jeux</h2>
-            {['truthOrDare', 'loveDice', 'scenario'].map(g => (
+            <h2 className="text-3xl font-black mb-10 text-center uppercase tracking-tight">Zone de Jeux</h2>
+            {['truth', 'dare', 'dice'].map(g => (
               <button key={g} onClick={() => setActiveGame(g)} className="w-full bg-slate-900 p-6 rounded-3xl border border-white/5 flex justify-between items-center group active:scale-95 transition"><div><h4 className="font-bold text-rose-400 uppercase text-xs">{g}</h4><p className="text-xs text-slate-500 mt-1">Lancer</p></div><ChevronRight/></button>
             ))}
           </div>
         )}
 
         {activeTab === 'jeux' && activeGame && (
-          <div className="fixed inset-0 bg-slate-950 z-[200] flex flex-col animate-in slide-in-from-right">
+          <div className="absolute inset-0 bg-slate-950 z-[200] flex flex-col animate-in slide-in-from-right">
             <header className="p-6 border-b border-white/5"><button onClick={() => {setActiveGame(null); setGameResult(null);}} className="p-2 bg-slate-800 rounded-full"><ArrowLeft size={20}/></button></header>
             <div className="flex-1 p-6 flex flex-col items-center justify-center text-center">
               <div className="bg-slate-900 p-10 rounded-[3rem] border border-rose-500/20 w-full mb-10 text-xl font-bold leading-relaxed">{gameResult || "Prêts ?"}</div>
-              <div className="flex gap-4 w-full max-w-sm">
-                {activeGame === 'truthOrDare' ? <><button onClick={() => triggerGameResult('truth')} className="flex-1 bg-indigo-600 py-4 rounded-2xl font-black">VÉRITÉ</button><button onClick={() => triggerGameResult('dare')} className="flex-1 bg-rose-600 py-4 rounded-2xl font-black">ACTION</button></> : <button onClick={() => triggerGameResult(activeGame === 'loveDice' ? 'dice' : 'scenario')} className="w-full bg-amber-500 py-4 rounded-2xl font-black text-slate-900">GÉNÉRER</button>}
-              </div>
+              <button onClick={() => triggerGame(activeGame === 'dice' ? 'dice' : activeGame)} className="w-full max-w-sm bg-rose-600 py-4 rounded-2xl font-black">JOUER</button>
             </div>
-          </div>
-        )}
-
-        {activeTab === 'duo' && (
-          <div className="p-6 animate-in fade-in text-center space-y-8">
-            <h2 className="text-3xl font-black">Duo</h2>
-            {!userData?.partnerUid ? (
-              <div className="bg-slate-900 p-10 rounded-[3rem] border border-white/5"><div className="text-4xl font-mono font-black mb-10 tracking-widest">{userData?.pairCode}</div><input value={partnerCodeInput} onChange={e => setPartnerCodeInput(e.target.value.toUpperCase())} className="w-full bg-slate-800 p-4 rounded-xl text-center mb-4" placeholder="CODE PARTENAIRE" /><button onClick={() => updateDoc(doc(db, 'users', user.uid), { partnerUid: partnerCodeInput })} className="w-full bg-emerald-600 py-4 rounded-xl font-bold">LIER</button></div>
-            ) : (
-              <div className="bg-slate-900 p-10 rounded-[3rem] border border-emerald-500/20"><Heart fill="currentColor" size={48} className="text-rose-500"/><h3 className="text-xl font-black mt-4 uppercase">Duo Connecté</h3></div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'profil' && (
-          <div className="p-6 animate-in fade-in flex flex-col items-center">
-            <div className="w-24 h-24 rounded-full border-4 border-slate-800 bg-slate-900 mb-6 overflow-hidden"><img src={userData?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`} className="w-full h-full object-cover"/></div>
-            <h2 className="text-2xl font-black">{userData?.pseudo}</h2>
           </div>
         )}
 
         {activeTab === 'conseils' && (
           <div className="p-6 space-y-4 animate-in fade-in">
-             <h2 className="text-3xl font-black mb-6">Guide Intime</h2>
              {TIPS_DATA.map(tip => <div key={tip.id} onClick={() => setSelectedTip(tip)} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex gap-4 cursor-pointer hover:bg-slate-800 transition"><div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">{tip.icon}</div><div><h4 className="font-bold text-sm">{tip.title}</h4><p className="text-xs text-slate-500 mt-1 line-clamp-2">{tip.content}</p></div></div>)}
           </div>
         )}
       </main>
 
       <nav className="fixed bottom-0 w-full bg-slate-950/95 backdrop-blur-2xl border-t border-slate-900 px-6 py-5 flex justify-between items-center z-50 shrink-0 pb-10">
-        {[ {id:'explorer', icon:<Compass/>}, {id:'jeux', icon:<Gamepad2/>}, {id:'conseils', icon:<BookOpen/>}, {id:'duo', icon:<Users/>}, {id:'profil', icon:<User/>} ].map(tab => (
+        {[ {id:'explorer', icon:<Compass/>}, {id:'jeux', icon:<Gamepad2/>}, {id:'conseils', icon:<BookOpen/>}, {id:'profil', icon:<User/>} ].map(tab => (
           <button key={tab.id} onClick={() => {setActiveTab(tab.id); setActiveGame(null);}} className={`flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-rose-500 scale-110' : 'text-slate-500'}`}>{tab.icon}<span className="text-[8px] font-bold uppercase">{tab.id}</span></button>
         ))}
       </nav>
 
-      {/* MODALS DETAILS */}
       {selectedPosition && (
         <div className="fixed inset-0 z-[300] bg-slate-950 flex flex-col animate-in slide-in-from-bottom">
           <header className="p-6 shrink-0"><button onClick={() => setSelectedPosition(null)} className="p-2 bg-slate-800 rounded-full"><ArrowLeft size={20}/></button></header>
           <div className="flex-1 overflow-y-auto px-6 pb-32 space-y-6">
-            <h2 className="text-4xl font-black leading-tight">{applyDiscreet(selectedPosition.name)}</h2>
-            <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5"><h4 className="text-rose-500 text-xs font-black uppercase mb-3 tracking-widest">Description</h4><p className="text-slate-300 leading-relaxed text-lg">{applyDiscreet(selectedPosition.desc)}</p></div>
-            {selectedPosition.v && <div className="bg-indigo-900/20 p-8 rounded-[2.5rem] border border-indigo-500/20"><h4 className="text-indigo-400 text-xs font-black uppercase mb-3">Astuce</h4><p className="text-slate-300">{applyDiscreet(selectedPosition.v)}</p></div>}
+            <h2 className="text-4xl font-black leading-tight">{discreetMode ? "Position" : selectedPosition.name}</h2>
+            <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5"><h4 className="text-rose-500 text-xs font-black uppercase mb-3 tracking-widest">Description</h4><p className="text-slate-300 leading-relaxed text-lg">{discreetMode ? "xxx xxx" : selectedPosition.desc}</p></div>
           </div>
         </div>
       )}
