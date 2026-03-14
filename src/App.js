@@ -17,7 +17,7 @@ import {
   CalendarHeart
 } from 'lucide-react';
 
-// --- RÉPARATION FIREBASE (ANTI-ÉCRAN BLEU) ---
+// --- RÉPARATION FIREBASE (ANTI-ÉCRAN BLEU VERCEL) ---
 const getFirebaseConfig = () => {
   const defaultConfig = {
     apiKey: "AIzaSyCY-gRv2rOrLy8LgxHn5cyd5937jXmrypw",
@@ -30,21 +30,32 @@ const getFirebaseConfig = () => {
   };
 
   try {
-    // Si la variable globale existe, on l'utilise, sinon on prend la config directe
-    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-      return JSON.parse(__firebase_config);
+    // Sécurisation SSR : On vérifie que window existe avant d'accéder aux variables globales
+    if (typeof window !== 'undefined' && typeof window.__firebase_config !== 'undefined' && window.__firebase_config) {
+      return typeof window.__firebase_config === 'string' 
+        ? JSON.parse(window.__firebase_config) 
+        : window.__firebase_config;
+    } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+      return typeof __firebase_config === 'string' 
+        ? JSON.parse(__firebase_config) 
+        : __firebase_config;
     }
   } catch (e) {
-    console.error("Erreur config dynamique");
+    console.error("Erreur config dynamique", e);
   }
   return defaultConfig;
 };
 
 const firebaseConfig = getFirebaseConfig();
+// Initialisation sécurisée pour éviter les instances multiples sur Next.js/Vercel
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'kamasync-ultra-v4';
+
+// Sécurisation SSR pour l'appId
+const appId = (typeof window !== 'undefined' && typeof window.__app_id !== 'undefined') 
+  ? window.__app_id 
+  : (typeof __app_id !== 'undefined' ? __app_id : 'kamasync-ultra-v4');
 
 // --- TON CONTENU INTACT (AUCUNE SUPPRESSION) ---
 
@@ -131,16 +142,25 @@ export default function App() {
   const [gameResult, setGameResult] = useState(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (!u) signInAnonymously(auth).catch(() => setLoading(false));
-    });
+    let unsub = () => {};
+    // On s'assure que le code Firebase ne s'exécute que côté client
+    if (typeof window !== 'undefined') {
+      unsub = onAuthStateChanged(auth, (u) => {
+        setUser(u);
+        if (!u) {
+          signInAnonymously(auth).catch((error) => {
+            console.error("Erreur d'authentification anonyme:", error);
+            setLoading(false);
+          });
+        }
+      });
+    }
     const timer = setTimeout(() => setLoading(false), 4000);
     return () => { unsub(); clearTimeout(timer); };
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || typeof window === 'undefined') return;
     const unsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
       if (snap.exists()) setUserData(snap.data());
       setLoading(false);
@@ -182,7 +202,7 @@ export default function App() {
                 <h3 className={`font-bold ${cat.text}`}>{cat.id}</h3>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {filteredPositions.filter(p => p.cat === cat.id).map(pos => (
-                    <div key={pos.id} onClick={() => setSelectedPosition(pos)} className={`shrink-0 w-48 bg-gradient-to-br ${cat.color} p-5 rounded-[2rem] border border-white/5`}>
+                    <div key={pos.id} onClick={() => setSelectedPosition(pos)} className={`shrink-0 w-48 bg-gradient-to-br ${cat.color} p-5 rounded-[2rem] border border-white/5 cursor-pointer`}>
                        <h4 className="font-bold mb-2 text-sm">{discreetMode ? "Position" : pos.name}</h4>
                     </div>
                   ))}
@@ -212,7 +232,7 @@ export default function App() {
 
         {activeTab === 'conseils' && (
           <div className="p-6 space-y-4">
-             {TIPS_DATA.map(tip => <div key={tip.id} onClick={() => setSelectedTip(tip)} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex gap-4"><div className="text-indigo-400">{tip.icon}</div><h4 className="font-bold text-sm">{tip.title}</h4></div>)}
+             {TIPS_DATA.map(tip => <div key={tip.id} onClick={() => setSelectedTip(tip)} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex gap-4 cursor-pointer"><div className="text-indigo-400">{tip.icon}</div><h4 className="font-bold text-sm">{tip.title}</h4></div>)}
           </div>
         )}
       </main>
