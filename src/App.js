@@ -4,8 +4,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { 
   getFirestore, doc, setDoc, collection, 
-  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc,
-  query, where, getDocs // <-- AJOUTS IMPORTANTS ICI
+  onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc
 } from 'firebase/firestore';
 import { 
   Heart, Flame, Plus, Sparkles, ChevronRight, 
@@ -206,12 +205,12 @@ const POSITIONS_DATA = [
   { n: "Le Tire-bouchon", c: "De côté", d: 3, s: 4, desc: "Le partenaire A est allongé sur le dos, tandis que le partenaire B s'allonge perpendiculairement sur le côté, une jambe par-dessus le torse de A.", v: "Variante : Le partenaire A utilise ses mains pour tirer les hanches de B vers lui à chaque mouvement." },
   { n: "L'Étau", c: "De côté", d: 2, s: 3, desc: "En cuillère, le partenaire arrière verrouille fermement ses deux jambes autour de la jambe inférieure du partenaire avant.", v: "Variante : Le receveur pousse vers l'arrière à chaque mouvement pour contrer la poussée." },
   { n: "La Cuillère surélevée", c: "De côté", d: 2, s: 3, desc: "En cuillère classique, le partenaire receveur lève sa jambe supérieure (celle du dessus) vers le plafond pour ouvrir largement l'accès.", v: "Variante : Le partenaire arrière attrape cette jambe levée pour stabiliser la position." },
-  { n: "Le V incliné", c: "De côté", d: 3, s: 3, desc: "Les deux partenaires sont sur le flanc, mais leurs bustes s'éloignent pour গঠন un V, seuls leurs bassins restent connectés au centre.", v: "Variante : Le partenaire avant regarde par-dessus son épaule pour maintenir le contact visuel." },
+  { n: "Le V incliné", c: "De côté", d: 3, s: 3, desc: "Les deux partenaires sont sur le flanc, mais leurs bustes s'éloignent pour form un V, seuls leurs bassins restent connectés au centre.", v: "Variante : Le partenaire avant regarde par-dessus son épaule pour maintenir le contact visuel." },
   { n: "Le Croissant de lune", c: "De côté", d: 2, s: 2, desc: "Une cuillère où les deux partenaires courbent fortement leur dos et rentrent la tête pour former un cocon en arc de cercle.", v: "Variante : Le partenaire arrière masse la nuque du partenaire avant avec des mouvements lents." },
   { n: "Le Noeud amoureux", c: "De côté", d: 3, s: 3, desc: "Face à face sur le côté, chaque partenaire enlace ses jambes autour des cuisses de l'autre. Une véritable fusion des corps difficile à dénouer.", v: "Variante : Balancez doucement vos corps d'avant en arrière de façon synchronisée." },
   { n: "L'Étoile Filante", c: "De côté", d: 2, s: 3, desc: "Le partenaire A est sur le dos. Le partenaire B est allongé sur le côté, formant un T parfait avec le corps de A.", v: "Variante : B glisse une main sous le creux des reins de A pour créer une légère cambrure." },
   { n: "Le Poteau", c: "Debout & Acrobatique", d: 4, s: 4, desc: "Le receveur se tient debout, le dos fermement plaqué contre un mur. Le partenaire actif se tient debout face à lui pour la pénétration.", v: "Variante : Le receveur lève une jambe et l'enroule autour de la hanche du partenaire." },
-  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Le partenaire debout porte entièrement l'autre partenaire. Le porté en enroule ses jambes autour de la taille du porteur et s'agrippe à son cou.", v: "Variante : Le porteur peut s'adosser à un mur pour soulager le poids sur son dos." },
+  { n: "L'Ascenseur", c: "Debout & Acrobatique", d: 5, s: 5, desc: "Le partenaire debout porte entièrement l'autre partenaire. Le porté enroule ses jambes autour de la taille du porteur et s'agrippe à son cou.", v: "Variante : Le porteur peut s'adosser à un mur pour soulager le poids sur son dos." },
   { n: "Le Rocking-chair", c: "Debout & Acrobatique", d: 3, s: 3, desc: "Le partenaire actif est assis sur une chaise solide. Le receveur s'assoit à califourchon face à lui. Mouvements de va-et-vient horizontaux.", v: "Variante : Le receveur pose ses pieds à plat sur l'assise pour rebondir." },
   { n: "La Balançoire", c: "Debout & Acrobatique", d: 4, s: 4, desc: "Le receveur s'assoit sur un meuble haut (machine à laver, commode). Le partenaire se tient debout entre ses jambes écartées.", v: "Variante : Le receveur s'allonge en arrière sur le meuble, la tête dans le vide." },
   { n: "Le Stand and Deliver", c: "Debout & Acrobatique", d: 3, s: 4, desc: "Le receveur s'allonge sur une table solide, les fesses au ras du bord. Le partenaire actif est debout sur le sol.", v: "Variante : Le partenaire debout soulève les jambes du receveur et les pose sur ses épaules." },
@@ -575,45 +574,23 @@ export default function App() {
     notify("Création supprimée", "🗑️");
   };
 
-  // --- RECHERCHE ET LIAISON DU PARTENAIRE ICI ---
   const handleLinkPartner = async () => {
     if (!partnerCodeInput || partnerCodeInput.length !== 6) {
       notify("Code invalide", "❌");
       return;
     }
-    
-    try {
-      // 1. On cherche l'utilisateur qui a ce code à 6 lettres
-      const usersRef = collection(db, 'artifacts', appId, 'users');
-      const q = query(usersRef, where("pairCode", "==", partnerCodeInput));
-      const querySnapshot = await getDocs(q);
+    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+    await updateDoc(userRef, { partnerUid: partnerCodeInput });
+    notify("Liaison envoyée !", "🔗");
+  };
 
-      if (querySnapshot.empty) {
-        notify("Code introuvable", "❌");
-        return;
-      }
-
-      const partnerDoc = querySnapshot.docs[0];
-      const actualPartnerUid = partnerDoc.id; // Le vrai UID Firebase de l'autre personne
-
-      if (actualPartnerUid === user.uid) {
-         notify("Vous ne pouvez pas vous lier à vous-même", "⚠️");
-         return;
-      }
-
-      // 2. On lie MON compte au sien
-      const myRef = doc(db, 'artifacts', appId, 'users', user.uid);
-      await updateDoc(myRef, { partnerUid: actualPartnerUid });
-
-      // 3. On lie SON compte au mien (pour que la synchronisation soit instantanée des deux côtés)
-      const partnerRef = doc(db, 'artifacts', appId, 'users', actualPartnerUid);
-      await updateDoc(partnerRef, { partnerUid: user.uid });
-
-      notify("Liaison réussie !", "🔗");
-      setPartnerCodeInput('');
-    } catch (error) {
-      console.error(error);
-      notify("Erreur lors de la liaison", "❌");
+  // NOUVEAU : FONCTION POUR DÉLIER LE PARTENAIRE
+  const handleUnlinkPartner = async () => {
+    if (!user) return;
+    if (window.confirm("Voulez-vous vraiment délier votre partenaire ?")) {
+      const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
+      await updateDoc(userRef, { partnerUid: null });
+      notify("Partenaire délié", "🔓");
     }
   };
 
@@ -1042,6 +1019,14 @@ export default function App() {
                      ))}
                    </div>
                  )}
+
+                 {/* NOUVEAU : BOUTON POUR DÉLIER */}
+                 <div className="pt-6">
+                   <button onClick={handleUnlinkPartner} className="w-full bg-slate-900/50 border border-rose-900/30 text-rose-500/70 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-900/20 hover:text-rose-400 transition-all">
+                     Délier mon partenaire
+                   </button>
+                 </div>
+
                </div>
              )}
           </div>
@@ -1194,54 +1179,3 @@ export default function App() {
             <div className={`space-y-6 ${discreetMode ? 'blur-md opacity-50 select-none' : ''}`}>
                <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 relative overflow-hidden">
                   <Info className="absolute -top-4 -right-4 text-white/5" size={120} />
-                  <h4 className="text-rose-400 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
-                     <Sparkles size={14}/> La Posture
-                  </h4>
-                  <p className="text-slate-300 text-sm leading-relaxed relative z-10 whitespace-pre-line">{applyDiscreet(selectedPosition.desc)}</p>
-               </div>
-
-               {selectedPosition.v && (
-                 <div className="bg-indigo-900/20 border border-indigo-500/20 rounded-3xl p-6">
-                    <h4 className="text-indigo-400 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
-                       <RefreshCw size={14}/> Variante & Astuce
-                    </h4>
-                    <p className="text-slate-300 text-sm leading-relaxed">{applyDiscreet(selectedPosition.v)}</p>
-                 </div>
-               )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 my-8">
-              <div className="bg-slate-900/40 p-5 rounded-3xl border border-slate-800 text-center">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Physique</span>
-                <div className="flex justify-center gap-1.5">{[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full ${i < selectedPosition.diff ? 'bg-indigo-500' : 'bg-slate-800'}`}/>)}</div>
-              </div>
-              <div className="bg-slate-900/40 p-5 rounded-3xl border border-slate-800 text-center">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Intensité</span>
-                <div className="flex justify-center gap-1.5">{[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full ${i < selectedPosition.spice ? 'bg-rose-500' : 'bg-slate-800'}`}/>)}</div>
-              </div>
-            </div>
-          </div>
-          <div className="p-6 bg-slate-950 border-t border-slate-900 shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
-            <button onClick={() => handleLike(selectedPosition.id)} className={`w-full py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${userData?.likes?.includes(selectedPosition.id) ? 'bg-slate-800 text-rose-500' : 'bg-rose-600 text-white'}`}>
-              <Heart fill={userData?.likes?.includes(selectedPosition.id) ? "currentColor" : "none"} size={18} />
-              {userData?.likes?.includes(selectedPosition.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CREATION & EDITION */}
-      {isCreating && (
-        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-full duration-300">
-          <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => {setIsCreating(false); setEditPosId(null);}} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
-            <h2 className="font-black text-white">{editPosId ? 'Modifier' : 'Créer'}</h2>
-            <div className="w-9"/>
-          </header>
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '20px' }}>
-            
-            {/* BOUTON DE PARTAGE (PRIVÉ VS PARTENAIRE) */}
-            <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-               <div>
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Visibilité</span>
-                 <span className={`text-sm font-bold ${newPos.shared ? '
