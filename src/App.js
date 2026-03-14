@@ -260,7 +260,7 @@ const POSITIONS_DATA = [
   { n: "Le Massage Préliminaire", c: "Oral & Préliminaires", d: 1, s: 3, desc: "Commencez par un massage complet du corps (dos, cuisses) avec de l'huile chauffante, en dérivant de plus en plus près de l'intimité sans y toucher, jusqu'à rendre l'autre fou.", v: "Variante : Utilisez la pulpe des doigts pour un toucher très léger, presque chatouilleux." },
   { n: "Le 69 Incliné", c: "Oral & Préliminaires", d: 3, s: 4, desc: "Réalisé sur une chaise longue ou un fauteuil incliné. Le partenaire du dessous est adossé, l'autre par-dessus lui.", v: "Variante : Le partenaire du dessus peut se stabiliser en agrippant le dossier du fauteuil." },
   { n: "La Montée en Puissance", c: "Oral & Préliminaires", d: 1, s: 4, desc: "Un oral basé sur le rythme : l'actif commence par des caresses imperceptibles pendant plusieurs minutes, avant d'augmenter brusquement la pression et la vitesse.", v: "Variante : Redescendez en intensité juste avant l'orgasme pour faire du 'edging'." },
-  { n: "L'Étoile Orale", c: "Oral & Préliminaires", d: 2, s: 3, desc: "Le receveur s'étale de tout son long sur le lit, bras et jambes ouverts en étoile de mer, s'abandonnant totalement aux soins de son partenaire.", v: "Variante : L'actif parcourt chaque branche de l'étoile avec des baisers avant d'atteindre le centre." },
+  { n: "L'Étoile Orale", c: "Oral & Préliminaires", d: 2, s: 3, desc: "Le receveur s'étale de tout son long sur le lit, bras et jambes ouverts en étoile de mer, s'abandonnant totally aux soins de son partenaire.", v: "Variante : L'actif parcourt chaque branche de l'étoile avec des baisers avant d'atteindre le centre." },
   { n: "Le Pont Oral", c: "Oral & Préliminaires", d: 4, s: 5, desc: "Le receveur se met en position de pont de gymnastique. L'actif se glisse sous lui pour une exploration par en dessous. Très physique.", v: "Variante : Le receveur peut prendre appui sur ses avant-bras plutôt que sur ses poignets." },
   { n: "L'Éveil des Sens", c: "Oral & Préliminaires", d: 1, s: 4, desc: "Avant tout contact buccal, l'actif utilise des objets (plume, foulard en soie, glaçon) pour effleurer les zones intimes.", v: "Variante : Demandez au receveur de deviner quel objet est en train d'être utilisé." },
   { n: "Le Missionnaire Jambes fermées", c: "Angles & Tweaks", d: 1, s: 3, desc: "Au lieu d'écarter les jambes, le receveur les serre fermement l'une contre l'autre. Le partenaire actif les enjambe. Crée une sensation de friction intense.", v: "Variante : Le receveur peut enrouler une cheville autour de l'autre pour verrouiller ses jambes." },
@@ -342,17 +342,23 @@ export default function App() {
 
   // --- FIREBASE INIT ---
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+    const unsub = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // Uniquement s'il n'y a PAS de session, on crée un compte anonyme
+        try {
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+        } catch (e) { 
+          console.error("Auth init error", e);
+          setLoading(false);
         }
-      } catch (e) { setLoading(false); }
-    };
-    initAuth();
-    const unsub = onAuthStateChanged(auth, setUser);
+      }
+    });
     return () => unsub();
   }, []);
 
@@ -409,7 +415,10 @@ export default function App() {
         }
       }
       setLoading(false);
-    }, (err) => console.log(err));
+    }, (err) => {
+       console.log(err);
+       setLoading(false);
+    });
 
     const myCustomCol = collection(db, 'artifacts', appId, 'users', user.uid, 'customPositions');
     const unsubMyCustom = onSnapshot(myCustomCol, (snap) => {
@@ -503,23 +512,34 @@ export default function App() {
 
   // --- ACTIONS UTILISATEUR & CREATION ---
   
-  // NOUVEAU: CONNEXION GOOGLE
+  // CORRIGÉ: CONNEXION GOOGLE AMÉLIORÉE
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
       if (user && user.isAnonymous) {
-        await linkWithPopup(user, provider);
+        const result = await linkWithPopup(user, provider);
+        setUser(result.user); // On force la mise à jour pour faire disparaître le bouton
         notify("Données sauvegardées sur Google !", "✅");
       } else {
-        await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        setUser(result.user);
         notify("Connecté avec Google !", "✅");
       }
     } catch (error) {
+      console.error("Erreur Google Auth:", error);
       if (error.code === 'auth/credential-already-in-use') {
-         await signInWithPopup(auth, provider);
-         notify("Connecté à votre compte existant.", "✅");
+         // L'utilisateur a déjà un compte. On l'y connecte pour récupérer ses données.
+         try {
+           const result = await signInWithPopup(auth, provider);
+           setUser(result.user);
+           notify("Compte et données récupérés !", "✅");
+         } catch (signInError) {
+           notify("Échec de la récupération", "❌");
+         }
+      } else if (error.code === 'auth/popup-closed-by-user') {
+         // L'utilisateur a juste fermé la fenêtre, on ne fait rien
       } else {
-         notify("Erreur de connexion Google", "❌");
+         notify("Erreur Google : " + error.message, "❌");
       }
     }
   };
@@ -1190,7 +1210,7 @@ export default function App() {
                    <Edit2 size={14} /> Modifier mon profil
                  </button>
 
-                 {/* NOUVEAU: BOUTON SAUVEGARDE GOOGLE */}
+                 {/* CORRIGÉ: BOUTON SAUVEGARDE GOOGLE */}
                  {user?.isAnonymous && (
                    <button 
                      onClick={handleGoogleLogin}
@@ -1215,341 +1235,3 @@ export default function App() {
                 <Heart className="mx-auto text-rose-500 mb-2" size={24} />
                 <div className="text-2xl font-black text-white">{userData?.likes?.length || 0}</div>
                 <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Favoris</div>
-              </div>
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center cursor-pointer hover:bg-slate-800 transition relative overflow-hidden group" onClick={() => {
-                  setNewPos({ name: '', cat: 'Face à face', newCat: '', desc: '', v: '', diff: 3, spice: 3, shared: true });
-                  setEditPosId(null);
-                  setIsCreating(true);
-              }}>
-                <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Plus size={16} className="text-emerald-500"/>
-                </div>
-                <Plus className="mx-auto text-emerald-500 mb-2" size={24} />
-                <div className="text-2xl font-black text-white">{myCustomPositions.length}</div>
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mes Créations</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* --- BOTTOM NAV (Avec Safe Area d'iOS) --- */}
-      <nav 
-        className="fixed bottom-0 w-full bg-slate-950/95 backdrop-blur-2xl border-t border-slate-900 px-2 flex justify-between items-center z-40"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)', paddingTop: '0.75rem' }}
-      >
-        <button onClick={() => {setActiveTab('explorer'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'explorer' ? 'text-rose-500 scale-110' : 'text-slate-500'}`}><Compass size={22}/><span className="text-[8px] font-black uppercase">Catalogue</span></button>
-        <button onClick={() => {setActiveTab('jeux'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'jeux' ? 'text-purple-500 scale-110' : 'text-slate-500'}`}><Gamepad2 size={24}/><span className="text-[8px] font-black uppercase">Jeux</span></button>
-        <button onClick={() => {setActiveTab('conseils'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'conseils' ? 'text-indigo-400 scale-110' : 'text-slate-500'}`}><BookOpen size={22}/><span className="text-[8px] font-black uppercase">Guide</span></button>
-        <button onClick={() => {setActiveTab('duo'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'duo' ? 'text-emerald-400 scale-110' : 'text-slate-500'}`}><Users size={22}/><span className="text-[8px] font-black uppercase">Duo</span></button>
-        <button onClick={() => {setActiveTab('profil'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'profil' ? 'text-white scale-110' : 'text-slate-500'}`}><User size={22}/><span className="text-[8px] font-black uppercase">Moi</span></button>
-      </nav>
-
-      {/* --- MODALS --- */}
-
-      {/* NOUVEAU: MODAL DU CHAT */}
-      {isChatOpen && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-right duration-300">
-          <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/90 backdrop-blur-xl z-10 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => setIsChatOpen(false)} className="text-slate-400 p-2 bg-slate-900 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
-            <div className="flex flex-col items-center">
-              <h2 className="font-black text-white tracking-tight flex items-center gap-2">
-                {partnerData?.pseudo || 'Partenaire'}
-              </h2>
-              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Connexion sécurisée</span>
-            </div>
-            <div className="w-10"></div>
-          </header>
-
-          <div className="flex-1 overflow-y-auto p-4 custom-scroll space-y-4 flex flex-col bg-slate-950" style={{ WebkitOverflowScrolling: 'touch' }}>
-            {messages.length === 0 ? (
-               <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-sm space-y-4 opacity-50">
-                  <MessageSquare size={48} className="text-slate-700" />
-                  <p>Envoyez votre premier message...</p>
-               </div>
-            ) : (
-               messages.map((msg, i) => {
-                 const isMe = msg.uid === user?.uid;
-                 return (
-                   <div key={msg.id || i} className={`max-w-[80%] flex ${isMe ? 'ml-auto justify-end' : 'mr-auto justify-start'}`}>
-                     <div className={`px-4 py-3 text-sm ${isMe ? 'bg-rose-600 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-slate-800 text-slate-200 rounded-r-2xl rounded-tl-2xl'}`}>
-                       {msg.text}
-                     </div>
-                   </div>
-                 );
-               })
-            )}
-            {/* Élément invisible pour forcer le scroll vers le bas */}
-            <div ref={chatEndRef} />
-          </div>
-
-          <form onSubmit={handleSendMessage} className="p-4 bg-slate-950/80 backdrop-blur-xl border-t border-slate-900 shrink-0 flex gap-2 items-end" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
-             <textarea 
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Écrire un message secret..."
-                className="flex-1 bg-slate-900 border border-slate-800 text-white p-3 rounded-2xl outline-none text-base resize-none max-h-32 min-h-[50px] custom-scroll"
-                rows="1"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(e);
-                  }
-                }}
-             />
-             <button type="submit" disabled={!newMessage.trim()} className="bg-rose-600 p-3.5 rounded-2xl text-white disabled:opacity-50 disabled:bg-slate-800 transition-colors shrink-0">
-               <Send size={20} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
-             </button>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL EDITION PROFIL */}
-      {isEditingProfile && (
-        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-full duration-300">
-          <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => setIsEditingProfile(false)} className="text-slate-400 bg-slate-900 p-2 rounded-full"><ArrowLeft size={20}/></button>
-            <h2 className="font-black text-white tracking-tight">Profil</h2>
-            <div className="w-9"/>
-          </header>
-          
-          <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}>
-            <div className="flex flex-col items-center space-y-4">
-              <div className="relative">
-                <div className="w-28 h-28 rounded-full border-4 border-slate-800 bg-slate-900 overflow-hidden shadow-xl">
-                  <img src={profileForm.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                </div>
-                <button onClick={generateNewAvatar} className="absolute bottom-0 right-0 bg-rose-600 text-white p-2 rounded-full shadow-lg border-2 border-slate-950 hover:scale-110 transition">
-                  <RefreshCw size={16} />
-                </button>
-              </div>
-              <span className="text-xs text-slate-400 font-medium">Avatar aléatoire</span>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Pseudo</label>
-                <input 
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-xl outline-none text-white text-base" 
-                  placeholder="Votre pseudonyme" value={profileForm.pseudo} onChange={(e) => setProfileForm({...profileForm, pseudo: e.target.value})} maxLength={20}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Biographie</label>
-                <textarea 
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-xl outline-none h-32 text-base leading-relaxed text-slate-300 resize-none" 
-                  placeholder="Dites-en plus sur vous..." value={profileForm.bio} onChange={(e) => setProfileForm({...profileForm, bio: e.target.value})} maxLength={150}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="p-6 bg-slate-950 border-t border-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
-            <button onClick={handleSaveProfile} className="w-full bg-rose-600 text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-600/20 active:scale-95 transition">Enregistrer</button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL POSITION DETAILS */}
-      {selectedPosition && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
-          <div className="relative pb-8 px-6 bg-gradient-to-b from-rose-950/40 to-slate-950 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 3rem)' }}>
-            <button onClick={() => {setSelectedPosition(null); setShowDeleteConfirm(false);}} className="absolute left-6 text-slate-400 bg-slate-900/50 p-2 rounded-full backdrop-blur-md hover:bg-slate-800 transition" style={{ top: 'max(env(safe-area-inset-top), 1.5rem)' }}><ArrowLeft size={20}/></button>
-            
-            {/* BOUTONS ACTIONS POUR SES PROPRES CRÉATIONS */}
-            {selectedPosition.isMine && (
-              <div className="absolute right-6 flex gap-2" style={{ top: 'max(env(safe-area-inset-top), 1.5rem)' }}>
-                 <button onClick={() => handleOpenEdit(selectedPosition)} className="text-indigo-400 bg-indigo-900/40 p-2 rounded-full backdrop-blur-md border border-indigo-500/20 hover:bg-indigo-900/60 transition"><Edit3 size={18}/></button>
-                 <button onClick={() => setShowDeleteConfirm(true)} className="text-rose-400 bg-rose-900/40 p-2 rounded-full backdrop-blur-md border border-rose-500/20 hover:bg-rose-900/60 transition"><Trash2 size={18}/></button>
-              </div>
-            )}
-
-            <div className="text-center mt-6">
-              <span className="inline-block px-3 py-1 bg-slate-900 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-rose-500/20 mb-3">{selectedPosition.cat}</span>
-              <h2 className="text-3xl font-black text-white leading-tight">{discreetMode ? "Masqué" : selectedPosition.name}</h2>
-              {selectedPosition.isPartner && <div className="mt-2 text-xs text-emerald-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1"><Users size={12}/> Création de {partnerData?.pseudo || 'votre partenaire'}</div>}
-              {selectedPosition.isMine && selectedPosition.shared === false && <div className="mt-2 text-xs text-slate-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1"><EyeOff size={12}/> Privé (non partagé)</div>}
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto px-6 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '20px' }}>
-            
-            {showDeleteConfirm && (
-              <div className="bg-rose-900/20 border border-rose-500/30 rounded-3xl p-6 mb-6 text-center animate-in zoom-in">
-                <h3 className="text-white font-bold mb-4">Êtes-vous sûr de vouloir supprimer cette création ?</h3>
-                <div className="flex gap-2">
-                  <button onClick={handleDeletePosition} className="flex-1 bg-rose-600 text-white py-3 rounded-xl font-bold">Oui, Supprimer</button>
-                  <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold">Annuler</button>
-                </div>
-              </div>
-            )}
-
-            <div className={`space-y-6 ${discreetMode ? 'blur-md opacity-50 select-none' : ''}`}>
-               <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 relative overflow-hidden">
-                  <Info className="absolute -top-4 -right-4 text-white/5" size={120} />
-                  <h4 className="text-rose-400 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
-                     <Sparkles size={14}/> La Posture
-                  </h4>
-                  <p className="text-slate-300 text-sm leading-relaxed relative z-10 whitespace-pre-line">{applyDiscreet(selectedPosition.desc)}</p>
-               </div>
-
-               {selectedPosition.v && (
-                 <div className="bg-indigo-900/20 border border-indigo-500/20 rounded-3xl p-6">
-                    <h4 className="text-indigo-400 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
-                       <RefreshCw size={14}/> Variante & Astuce
-                    </h4>
-                    <p className="text-slate-300 text-sm leading-relaxed">{applyDiscreet(selectedPosition.v)}</p>
-                 </div>
-               )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 my-8">
-              <div className="bg-slate-900/40 p-5 rounded-3xl border border-slate-800 text-center">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Physique</span>
-                <div className="flex justify-center gap-1.5">{[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full ${i < selectedPosition.diff ? 'bg-indigo-500' : 'bg-slate-800'}`}/>)}</div>
-              </div>
-              <div className="bg-slate-900/40 p-5 rounded-3xl border border-slate-800 text-center">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Intensité</span>
-                <div className="flex justify-center gap-1.5">{[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full ${i < selectedPosition.spice ? 'bg-rose-500' : 'bg-slate-800'}`}/>)}</div>
-              </div>
-            </div>
-          </div>
-          <div className="p-6 bg-slate-950 border-t border-slate-900 shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
-            <button onClick={() => handleLike(selectedPosition.id)} className={`w-full py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${userData?.likes?.includes(selectedPosition.id) ? 'bg-slate-800 text-rose-500' : 'bg-rose-600 text-white'}`}>
-              <Heart fill={userData?.likes?.includes(selectedPosition.id) ? "currentColor" : "none"} size={18} />
-              {userData?.likes?.includes(selectedPosition.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CREATION & EDITION */}
-      {isCreating && (
-        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-full duration-300">
-          <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => {setIsCreating(false); setEditPosId(null);}} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
-            <h2 className="font-black text-white">{editPosId ? 'Modifier' : 'Créer'}</h2>
-            <div className="w-9"/>
-          </header>
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '20px' }}>
-            
-            {/* BOUTON DE PARTAGE (PRIVÉ VS PARTENAIRE) */}
-            <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-               <div>
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Visibilité</span>
-                 <span className={`text-sm font-bold ${newPos.shared ? 'text-emerald-400' : 'text-slate-400'}`}>
-                   {newPos.shared ? 'Partagée avec mon partenaire' : 'Privée (Moi uniquement)'}
-                 </span>
-               </div>
-               <button 
-                 onClick={() => setNewPos({...newPos, shared: !newPos.shared})} 
-                 className={`w-14 h-8 rounded-full relative transition-colors ${newPos.shared ? 'bg-emerald-500' : 'bg-slate-700'}`}
-               >
-                 <div className={`w-6 h-6 rounded-full bg-white absolute top-1 transition-transform ${newPos.shared ? 'translate-x-7' : 'translate-x-1'}`}/>
-               </button>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nom de la position</label>
-              <input className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base" placeholder="Ex: Le Volcan..." value={newPos.name} onChange={(e) => setNewPos({...newPos, name: e.target.value})} />
-            </div>
-
-            {/* SELECTION CATÉGORIE + NOUVELLE */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Catégorie</label>
-              <select className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base appearance-none" value={newPos.cat} onChange={(e) => setNewPos({...newPos, cat: e.target.value})}>
-                {displayCategories.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
-                <option value="NEW">+ Créer une nouvelle catégorie...</option>
-              </select>
-              
-              {newPos.cat === 'NEW' && (
-                <div className="mt-3 animate-in fade-in slide-in-from-top-2">
-                  <input className="w-full bg-indigo-900/20 border border-indigo-500/50 focus:border-indigo-400 p-4 rounded-2xl outline-none text-indigo-300 text-base placeholder:text-indigo-900/50" placeholder="Nom de votre nouvelle catégorie" value={newPos.newCat} onChange={(e) => setNewPos({...newPos, newCat: e.target.value})} autoFocus />
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Physique ({newPos.diff}/5)</label>
-                <input type="range" min="1" max="5" value={newPos.diff} onChange={(e) => setNewPos({...newPos, diff: parseInt(e.target.value)})} className="w-full accent-indigo-500" />
-              </div>
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Intensité ({newPos.spice}/5)</label>
-                <input type="range" min="1" max="5" value={newPos.spice} onChange={(e) => setNewPos({...newPos, spice: parseInt(e.target.value)})} className="w-full accent-rose-500" />
-              </div>
-            </div>
-            
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Description de la Posture</label>
-              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-5 rounded-2xl outline-none h-32 text-base leading-relaxed text-slate-300 resize-none" placeholder="Décrivez comment se placer..." value={newPos.desc} onChange={(e) => setNewPos({...newPos, desc: e.target.value})} />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variante (Optionnel)</label>
-              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 p-5 rounded-2xl outline-none h-24 text-base leading-relaxed text-slate-300 resize-none" placeholder="Une astuce ou variante pour pimenter..." value={newPos.v} onChange={(e) => setNewPos({...newPos, v: e.target.value})} />
-            </div>
-
-          </div>
-          <div className="p-6 bg-slate-950 border-t border-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
-             <button onClick={handleSavePosition} className="w-full bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all active:scale-[0.98]">
-               {editPosId ? 'Enregistrer les modifications' : (newPos.shared ? 'Créer et Partager' : 'Créer Secrètement')}
-             </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TIP */}
-      {selectedTip && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
-          <header className="px-6 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => setSelectedTip(null)} className="text-slate-400 bg-slate-800 p-2 rounded-full hover:bg-slate-700 transition"><ArrowLeft size={20}/></button>
-          </header>
-          <div className="flex-1 overflow-y-auto px-6 py-8 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
-             <h2 className="text-3xl font-black text-white mb-6 leading-tight">{selectedTip.title}</h2>
-             <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">{selectedTip.content}</div>
-          </div>
-        </div>
-      )}
-
-      {/* NOUVEAU: MODAL INSTALLATION ECRAN ACCUEIL SANS IMAGE */}
-      {showInstallTutorial && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
-          <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/90 backdrop-blur-xl z-10 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => setShowInstallTutorial(false)} className="text-slate-400 p-2 bg-slate-900 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
-            <h2 className="font-black text-white tracking-tight">Installation</h2>
-            <div className="w-10"></div>
-          </header>
-
-          <div className="flex-1 overflow-y-auto p-6 custom-scroll space-y-6" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
-            
-            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
-              <h3 className="text-base font-black text-white flex items-center gap-2">🍏 Pour iOS (iPhone)</h3>
-              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
-                <li>Ouvrez l'application <b>Safari</b> et allez sur <code>kama-sync.vercel.app</code></li>
-                <li>Appuyez sur l'icône <b>Partager</b> (le carré avec la flèche vers le haut) en bas de l'écran.</li>
-                <li>Faites défiler vers le bas et choisissez <b>Sur l'écran d'accueil</b>.</li>
-                <li>Appuyez sur <b>Ajouter</b>.</li>
-              </ol>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
-              <h3 className="text-base font-black text-white flex items-center gap-2">🤖 Pour Android</h3>
-              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
-                <li>Ouvrez l'application <b>Chrome</b> et allez sur <code>kama-sync.vercel.app</code></li>
-                <li>Appuyez sur les <b>trois petits points</b> en haut à droite.</li>
-                <li>Sélectionnez <b>Ajouter à l'écran d'accueil</b> (ou Installer l'application).</li>
-                <li>Appuyez sur <b>Installer</b>.</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-      `}</style>
-    </div>
-  );
