@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, linkWithPopup, signInWithPopup } from 'firebase/auth';
 import { 
   getFirestore, doc, setDoc, collection, 
   onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc,
@@ -101,21 +101,66 @@ const GAMES_DATA = {
 
 // --- DONNÉES : CONSEILS ET ARTICLES ---
 const TIPS_DATA = [
-  { id: 't1', title: "Le consentement, moteur du désir", cat: "Communication", icon: <Shield/>, time: "2 min", content: "Le consentement n'est pas juste un 'oui' au début, c'est un dialogue continu. Vérifier si l'autre apprécie, demander 'tu aimes ça ?' ou 'je peux aller plus vite ?' n'est pas un tue-l'amour, au contraire ! C'est ce qui permet de s'abandonner totalement en sachant qu'on est en sécurité. N'hésitez pas à instaurer un 'Safe Word' (mot de sécurité) pour vos jeux les plus intenses." },
-  { id: 't2', title: "La Musique idéale pour le lit", cat: "Sensorielles", icon: <Music/>, time: "4 min", content: "La musique peut transformer une expérience banale en un moment magique. Voici nos conseils :\n\n1. Le Tempo magique (BPM) : Cherchez des musiques entre 60 et 80 BPM. Cela s'aligne sur le rythme cardiaque au repos, aidant vos corps à se synchroniser.\n2. Pas de paroles : Préférez l'instrumental (Lo-Fi, Trip-Hop, Jazz lent). Les paroles sollicitent la partie analytique du cerveau.\n3. Évitez le mode 'Aléatoire' : Créez une playlist qui évolue. Douce au début, avec un rythme qui s'intensifie, avant de redescendre pour l'aftercare." },
-  { id: 't3', title: "Réussir les positions debout", cat: "Pratique", icon: <Wind/>, time: "3 min", content: "Les positions debout ou acrobatiques nécessitent quelques précautions pour éviter les accidents.\n\n1. L'adhérence : Ne le faites pas en chaussettes sur du parquet ou dans une douche sans tapis antidérapant.\n2. La hauteur : Si vous devez porter votre partenaire, utilisez un meuble (lit, table) comme appui de départ pour soulager votre dos.\n3. La communication : Si les muscles tremblent, dites-le immédiatement. Il n'y a pas de honte à faire une pause." },
-  { id: 't4', title: "L'art délicat de l'Aftercare", cat: "Émotionnel", icon: <Heart/>, time: "3 min", content: "L'aftercare (les soins post-coïtaux) est crucial, surtout après un rapport intense. Lors de l'orgasme, le cerveau libère un cocktail d'hormones (ocytocine, dopamine) qui retombe brutalement ensuite. Pour éviter le 'blues post-sexe' :\n\n- Restez enlacés quelques minutes en silence.\n- Apportez un verre d'eau ou une petite collation.\n- Échangez des mots doux ou valorisants sur ce que vous venez de vivre.\n- Préparez une serviette tiède pour vous nettoyer mutuellement avec tendresse." },
-  { id: 't5', title: "Dirty Talk : Comment oser se lancer", cat: "Communication", icon: <MessageCircle/>, time: "4 min", content: "Le 'Dirty Talk' (parler cru) intimide souvent. Le secret est d'y aller par étapes :\n\n1. Le constat : Décrivez simplement ce que vous ressentez. 'J'adore quand tu fais ça', 'Ta peau est si chaude'.\n2. L'instruction : Donnez des directives douces. 'Plus vite', 'Regarde-moi quand tu le fais'.\n3. L'anticipation : Décrivez ce que vous allez faire. 'Je vais t'embrasser partout jusqu'à ce que tu n'en puisses plus'.\nL'important est d'utiliser un vocabulaire avec lequel vous êtes tous les deux à l'aise." },
-  { id: 't6', title: "Les zones érogènes méconnues", cat: "Sensorielles", icon: <Sparkles/>, time: "5 min", content: "Ne foncez pas directement vers les zones génitales ! Prenez le temps d'explorer ces zones souvent oubliées :\n\n- Le cuir chevelu : Un massage appuyé libère énormément de tensions.\n- Le creux des genoux et l'intérieur des poignets : La peau y est très fine et sensible.\n- La nuque et le cou : Un souffle chaud ou de légers mordillements y font des merveilles.\n- Le bas du ventre : Tracer des lignes imaginaires juste au-dessus du pubis rend l'attente insoutenable." },
-  { id: 't7', title: "Introduire des jouets dans le couple", cat: "Pratique", icon: <Zap/>, time: "4 min", content: "Un sex-toy ne remplace pas un partenaire, c'est un outil pour explorer de nouvelles sensations ensemble.\n\n- Dédiabolisez l'objet : Faites du shopping en ligne à deux pour choisir votre premier jouet.\n- Commencez petit : Un anneau vibrant ou un petit stimulateur clitoridien (bullet) est parfait pour débuter sans intimider.\n- Guidez l'autre : C'est encore plus excitant quand c'est le partenaire qui contrôle le jouet sur vous." },
-  { id: 't8', title: "L'art du Teasing (Faire monter le désir)", cat: "Préliminaires", icon: <Timer/>, time: "3 min", content: "Le sexe commence bien avant d'être dans la chambre. L'anticipation est le plus grand des aphrodisiaques :\n\n- Le matin : Laissez un post-it suggestif sur le miroir de la salle de bain.\n- La journée : Envoyez un message décrivant ce que vous portez ou ce que vous comptez lui faire le soir.\n- Le soir : Frôlez-vous dans la cuisine, embrassez-vous dans le cou, mais refusez d'aller plus loin... pour l'instant. Faites durer la frustration exquise." },
-  { id: 't9', title: "Jeux de température : Le Feu et la Glace", cat: "Sensorielles", icon: <Flame/>, time: "3 min", content: "Jouer avec le chaud et le froid réveille les terminaisons nerveuses :\n\n- Le froid : Passez un glaçon sur les lèvres de votre partenaire, le long de sa colonne vertébrale, ou gardez-le en bouche pendant le sexe oral (frissons garantis).\n- Le chaud : Utilisez de l'huile de massage chauffante ou buvez une gorgée de thé/café chaud avant d'embrasser le cou ou le ventre de votre partenaire.\n- Le contraste : Alternez immédiatement le souffle chaud de votre bouche après le passage du glaçon." },
-  { id: 't10', title: "Initiation au Bondage Léger", cat: "Découverte", icon: <Lock/>, time: "4 min", content: "Attacher son partenaire (ou l'être) crée un abandon total très excitant. Pour débuter sereinement :\n\n- N'utilisez jamais de menottes en métal (risque de blessure sans clé). Préférez des foulards en soie, des cravates souples ou des menottes en velcro.\n- Gardez toujours des ciseaux à bouts ronds à portée de main en cas de panique.\n- Ne laissez jamais la personne attachée seule dans la pièce.\n- Fixez un 'Safe Word' (ex: 'Rouge') qui stoppe instantanément le jeu si l'un de vous est mal à l'aise." },
-  { id: 't11', title: "Créer l'ambiance parfaite", cat: "Général", icon: <Star/>, time: "2 min", content: "L'environnement joue un rôle clé dans la capacité à lâcher prise :\n\n- L'éclairage : Fuyez les plafonniers ! Préférez une lumière tamisée, chaude (lampes de chevet, guirlandes) ou la lueur vacillante de quelques bougies.\n- L'ordre : Un lit défait avec des draps propres, c'est sexy. Des vêtements sales qui traînent au sol, ça l'est moins. Dégagez l'espace.\n- L'odeur : Aérez la pièce, utilisez un léger parfum d'ambiance ou de l'encens, mais sans excès." },
-  { id: 't12', title: "Le pouvoir du regard", cat: "Connexion", icon: <Eye/>, time: "3 min", content: "Le contact visuel est souvent sous-estimé car il rend très vulnérable. Pourtant, c'est l'outil de connexion ultime :\n\n- Pendant l'acte : Essayez de garder les yeux ouverts et de fixer ceux de votre partenaire pendant plusieurs minutes consécutives. La sensation de fusion est vertigineuse.\n- Le miroir : Placez-vous devant un miroir pour vous regarder faire l'amour. Le côté voyeuriste de votre propre couple est un puissant déclencheur." },
-  { id: 't13', title: "La liste Oui / Non / Peut-être", cat: "Communication", icon: <CheckCircle2/>, time: "3 min", content: "C'est un exercice génial pour les couples ! Imprimez chacun une liste détaillée de pratiques sexuelles. \n- Cochez 'Oui' (J'ai envie), 'Non' (C'est hors limite) ou 'Peut-être' (J'y réfléchis si on m'accompagne bien).\n- Comparez ensuite vos listes avec bienveillance. Vous découvrirez souvent que vous avez des fantasmes communs inavoués dans la colonne 'Peut-être' ou 'Oui' !" },
-  { id: 't14', title: "Massage sensuel : Les règles d'or", cat: "Préliminaires", icon: <Activity/>, time: "4 min", content: "Un massage sensuel n'est pas un massage thérapeutique. L'objectif est l'effleurement :\n\n- Utilisez de l'huile (préalablement réchauffée dans vos mains).\n- Ne soyez pas pressé : commencez par les épaules, descendez lentement vers les lombaires, massez les mollets et les pieds.\n- La règle d'or : Interdiction stricte de toucher les zones érogènes primaires (sexe, poitrine) pendant les 10 premières minutes. Le désir va grimper en flèche." },
-  { id: 't15', title: "Gérer les pannes et les moments gênants", cat: "Général", icon: <Info/>, time: "3 min", content: "Le sexe, ce n'est pas comme dans les films. Il y a des bruits bizarres, des crampes, des pannes d'érection ou des pertes de lubrification. C'est NORMAL.\n\n- Le rire est votre meilleur allié. Une crampe au mollet ? Riez-en ensemble, massez-la, et reprenez.\n- Une baisse de régime ? Ne focalisez pas dessus. Redescendez d'un cran : retournez aux caresses, aux baisers, sans obligation de résultat.\n- La pression de la performance est le pire ennemi de l'érection et du désir." }
+  {
+    id: 't1', title: "Le consentement, moteur du désir", cat: "Communication", icon: <Shield/>, time: "2 min",
+    content: "Le consentement n'est pas juste un 'oui' au début, c'est un dialogue continu. Vérifier si l'autre apprécie, demander 'tu aimes ça ?' ou 'je peux aller plus vite ?' n'est pas un tue-l'amour, au contraire ! C'est ce qui permet de s'abandonner totalement en sachant qu'on est en sécurité. N'hésitez pas à instaurer un 'Safe Word' (mot de sécurité) pour vos jeux les plus intenses."
+  },
+  {
+    id: 't2', title: "La Musique idéale pour le lit", cat: "Sensorielles", icon: <Music/>, time: "4 min",
+    content: "La musique peut transformer une expérience banale en un moment magique. Voici nos conseils :\n\n1. Le Tempo magique (BPM) : Cherchez des musiques entre 60 et 80 BPM. Cela s'aligne sur le rythme cardiaque au repos, aidant vos corps à se synchroniser.\n2. Pas de paroles : Préférez l'instrumental (Lo-Fi, Trip-Hop, Jazz lent). Les paroles sollicitent la partie analytique du cerveau.\n3. Évitez le mode 'Aléatoire' : Créez une playlist qui évolue. Douce au début, avec un rythme qui s'intensifie, avant de redescendre pour l'aftercare."
+  },
+  {
+    id: 't3', title: "Réussir les positions debout", cat: "Pratique", icon: <Wind/>, time: "3 min",
+    content: "Les positions debout ou acrobatiques nécessitent quelques précautions pour éviter les accidents.\n\n1. L'adhérence : Ne le faites pas en chaussettes sur du parquet ou dans une douche sans tapis antidérapant.\n2. La hauteur : Si vous devez porter votre partenaire, utilisez un meuble (lit, table) comme appui de départ pour soulager votre dos.\n3. La communication : Si les muscles tremblent, dites-le immédiatement. Il n'y a pas de honte à faire une pause."
+  },
+  {
+    id: 't4', title: "L'art délicat de l'Aftercare", cat: "Émotionnel", icon: <Heart/>, time: "3 min",
+    content: "L'aftercare (les soins post-coïtaux) est crucial, surtout après un rapport intense. Lors de l'orgasme, le cerveau libère un cocktail d'hormones (ocytocine, dopamine) qui retombe brutalement ensuite. Pour éviter le 'blues post-sexe' :\n\n- Restez enlacés quelques minutes en silence.\n- Apportez un verre d'eau ou une petite collation.\n- Échangez des mots doux ou valorisants sur ce que vous venez de vivre.\n- Préparez une serviette tiède pour vous nettoyer mutuellement avec tendresse."
+  },
+  {
+    id: 't5', title: "Dirty Talk : Comment oser se lancer", cat: "Communication", icon: <MessageCircle/>, time: "4 min",
+    content: "Le 'Dirty Talk' (parler cru) intimide souvent. Le secret est d'y aller par étapes :\n\n1. Le constat : Décrivez simplement ce que vous ressentez. 'J'adore quand tu fais ça', 'Ta peau est si chaude'.\n2. L'instruction : Donnez des directives douces. 'Plus vite', 'Regarde-moi quand tu le fais'.\n3. L'anticipation : Décrivez ce que vous allez faire. 'Je vais t'embrasser partout jusqu'à ce que tu n'en puisses plus'.\nL'important est d'utiliser un vocabulaire avec lequel vous êtes tous les deux à l'aise."
+  },
+  {
+    id: 't6', title: "Les zones érogènes méconnues", cat: "Sensorielles", icon: <Sparkles/>, time: "5 min",
+    content: "Ne foncez pas directement vers les zones génitales ! Prenez le temps d'explorer ces zones souvent oubliées :\n\n- Le cuir chevelu : Un massage appuyé libère énormément de tensions.\n- Le creux des genoux et l'intérieur des poignets : La peau y est très fine et sensible.\n- La nuque et le cou : Un souffle chaud ou de légers mordillements y font des merveilles.\n- Le bas du ventre : Tracer des lignes imaginaires juste au-dessus du pubis rend l'attente insoutenable."
+  },
+  {
+    id: 't7', title: "Introduire des jouets dans le couple", cat: "Pratique", icon: <Zap/>, time: "4 min",
+    content: "Un sex-toy ne remplace pas un partenaire, c'est un outil pour explorer de nouvelles sensations ensemble.\n\n- Dédiabolisez l'objet : Faites du shopping en ligne à deux pour choisir votre premier jouet.\n- Commencez petit : Un anneau vibrant ou un petit stimulateur clitoridien (bullet) est parfait pour débuter sans intimider.\n- Guidez l'autre : C'est encore plus excitant quand c'est le partenaire qui contrôle le jouet sur vous."
+  },
+  {
+    id: 't8', title: "L'art du Teasing (Faire monter le désir)", cat: "Préliminaires", icon: <Timer/>, time: "3 min",
+    content: "Le sexe commence bien avant d'être dans la chambre. L'anticipation est le plus grand des aphrodisiaques :\n\n- Le matin : Laissez un post-it suggestif sur le miroir de la salle de bain.\n- La journée : Envoyez un message décrivant ce que vous portez ou ce que vous comptez lui faire le soir.\n- Le soir : Frôlez-vous dans la cuisine, embrassez-vous dans le cou, mais refusez d'aller plus loin... pour l'instant. Faites durer la frustration exquise."
+  },
+  {
+    id: 't9', title: "Jeux de température : Le Feu et la Glace", cat: "Sensorielles", icon: <Flame/>, time: "3 min",
+    content: "Jouer avec le chaud et le froid réveille les terminaisons nerveuses :\n\n- Le froid : Passez un glaçon sur les lèvres de votre partenaire, le long de sa colonne vertébrale, ou gardez-le en bouche pendant le sexe oral (frissons garantis).\n- Le chaud : Utilisez de l'huile de massage chauffante ou buvez une gorgée de thé/café chaud avant d'embrasser le cou ou le ventre de votre partenaire.\n- Le contraste : Alternez immédiatement le souffle chaud de votre bouche après le passage du glaçon."
+  },
+  {
+    id: 't10', title: "Initiation au Bondage Léger", cat: "Découverte", icon: <Lock/>, time: "4 min",
+    content: "Attacher son partenaire (ou l'être) crée un abandon total très excitant. Pour débuter sereinement :\n\n- N'utilisez jamais de menottes en métal (risque de blessure sans clé). Préférez des foulards en soie, des cravates souples ou des menottes en velcro.\n- Gardez toujours des ciseaux à bouts ronds à portée de main en cas de panique.\n- Ne laissez jamais la personne attachée seule dans la pièce.\n- Fixez un 'Safe Word' (ex: 'Rouge') qui stoppe instantanément le jeu si l'un de vous est mal à l'aise."
+  },
+  {
+    id: 't11', title: "Créer l'ambiance parfaite", cat: "Général", icon: <Star/>, time: "2 min",
+    content: "L'environnement joue un rôle clé dans la capacité à lâcher prise :\n\n- L'éclairage : Fuyez les plafonniers ! Préférez une lumière tamisée, chaude (lampes de chevet, guirlandes) ou la lueur vacillante de quelques bougies.\n- L'ordre : Un lit défait avec des draps propres, c'est sexy. Des vêtements sales qui traînent au sol, ça l'est moins. Dégagez l'espace.\n- L'odeur : Aérez la pièce, utilisez un léger parfum d'ambiance ou de l'encens, mais sans excès."
+  },
+  {
+    id: 't12', title: "Le pouvoir du regard", cat: "Connexion", icon: <Eye/>, time: "3 min",
+    content: "Le contact visuel est souvent sous-estimé car il rend très vulnérable. Pourtant, c'est l'outil de connexion ultime :\n\n- Pendant l'acte : Essayez de garder les yeux ouverts et de fixer ceux de votre partenaire pendant plusieurs minutes consécutives. La sensation de fusion est vertigineuse.\n- Le miroir : Placez-vous devant un miroir pour vous regarder faire l'amour. Le côté voyeuriste de votre propre couple est un puissant déclencheur."
+  },
+  {
+    id: 't13', title: "La liste Oui / Non / Peut-être", cat: "Communication", icon: <CheckCircle2/>, time: "3 min",
+    content: "C'est un exercice génial pour les couples ! Imprimez chacun une liste détaillée de pratiques sexuelles. \n- Cochez 'Oui' (J'ai envie), 'Non' (C'est hors limite) ou 'Peut-être' (J'y réfléchis si on m'accompagne bien).\n- Comparez ensuite vos listes avec bienveillance. Vous découvrirez souvent que vous avez des fantasmes communs inavoués dans la colonne 'Peut-être' ou 'Oui' !"
+  },
+  {
+    id: 't14', title: "Massage sensuel : Les règles d'or", cat: "Préliminaires", icon: <Activity/>, time: "4 min",
+    content: "Un massage sensuel n'est pas un massage thérapeutique. L'objectif est l'effleurement :\n\n- Utilisez de l'huile (préalablement réchauffée dans vos mains).\n- Ne soyez pas pressé : commencez par les épaules, descendez lentement vers les lombaires, massez les mollets et les pieds.\n- La règle d'or : Interdiction stricte de toucher les zones érogènes primaires (sexe, poitrine) pendant les 10 premières minutes. Le désir va grimper en flèche."
+  },
+  {
+    id: 't15', title: "Gérer les pannes et les moments gênants", cat: "Général", icon: <Info/>, time: "3 min",
+    content: "Le sexe, ce n'est pas comme dans les films. Il y a des bruits bizarres, des crampes, des pannes d'érection ou des pertes de lubrification. C'est NORMAL.\n\n- Le rire est votre meilleur allié. Une crampe au mollet ? Riez-en ensemble, massez-la, et reprenez.\n- Une baisse de régime ? Ne focalisez pas dessus. Redescendez d'un cran : retournez aux caresses, aux baisers, sans obligation de résultat.\n- La pression de la performance est le pire ennemi de l'érection et du désir."
+  }
 ];
 
 // --- DONNÉES : POSITIONS (Base complète) ---
@@ -245,11 +290,9 @@ const POSITIONS_DATA = [
 const FULL_CATALOG = POSITIONS_DATA.map((p, i) => ({
   id: `p${i}`, name: p.n, cat: p.c, diff: p.d, spice: p.s, desc: p.desc, v: p.v
 }));
-
 export default function App() {
   // --- ÉTATS ---
   const [user, setUser] = useState(null);
-  const [requireLogin, setRequireLogin] = useState(false); // GESTION DE LA CONNEXION OBLIGATOIRE
   const [userData, setUserData] = useState(null);
   const [partnerData, setPartnerData] = useState(null);
   
@@ -288,88 +331,42 @@ export default function App() {
   const [activeGame, setActiveGame] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   
-  // NOUVEAUX ÉTATS POUR LE CHAT & NOTIFS
+  const [lastSeenPing, setLastSeenPing] = useState(Date.now());
+
+  // NOUVEAUX ÉTATS POUR LE CHAT
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const chatEndRef = useRef(null);
 
-  // REFS POUR LES NOTIFICATIONS SYSTÈMES SANS RECHARGEMENT
-  const lastSeenPingRef = useRef(Date.now());
-  const prevPartnerLikesRef = useRef([]);
-  const myLikesRef = useRef([]);
-
-  // --- SYSTÈME DE NOTIFICATION NATIVE (OS) ---
-  const fireSystemNotification = (title, body) => {
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+  // --- FIREBASE INIT ---
+  useEffect(() => {
+    const initAuth = async () => {
       try {
-        new Notification(title, { body });
-        if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-          navigator.serviceWorker.ready.then(reg => {
-             reg.showNotification(title, { body }).catch(e=>e);
-          }).catch(e=>e);
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
         }
-      } catch (e) {
-        console.log("Erreur notification système:", e);
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setNotificationsEnabled(Notification.permission === 'granted');
-    }
-  }, []);
-
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      notify("Votre navigateur ne supporte pas les notifications.", "❌");
-      return;
-    }
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        setNotificationsEnabled(true);
-        notify("Notifications activées avec succès !", "🔔");
-      } else {
-        notify("Permission refusée. Vérifiez vos paramètres.", "❌");
-      }
-    } catch (e) {
-      notify("Erreur lors de l'activation.", "❌");
-    }
-  };
-
-  // --- INIT AUTHENTIFICATION FIXÉE ---
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser && !currentUser.isAnonymous) {
-        setUser(currentUser);
-        setRequireLogin(false);
-      } else {
-        setUser(null);
-        setRequireLogin(true); // OBLIGE LA CONNEXION GOOGLE AU DEMARRAGE
-        setLoading(false);
-      }
-    });
+      } catch (e) { setLoading(false); }
+    };
+    initAuth();
+    const unsub = onAuthStateChanged(auth, setUser);
     return () => unsub();
   }, []);
-
 
   useEffect(() => {
     if (!user) return;
     const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
     let unsubPartnerCustom = () => {};
-    let unsubGlobalChat = () => {};
-    let unsubPartner = () => {};
 
     const unsubUser = onSnapshot(userRef, (snap) => {
       if (!snap.exists()) {
         const initial = { 
           uid: user.uid, 
-          pseudo: user.displayName || 'Anonyme', 
+          pseudo: 'Anonyme', 
           bio: 'Explorateur de sensations...',
-          avatarUrl: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}&backgroundColor=1e293b`,
+          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}&backgroundColor=1e293b`,
           likes: [], 
           pairCode: Math.random().toString(36).substring(2, 8).toUpperCase(), 
           partnerUid: null,
@@ -379,54 +376,24 @@ export default function App() {
         };
         setDoc(userRef, initial);
         setUserData(initial);
-        myLikesRef.current = [];
       } else {
         const data = snap.data();
         setUserData(data);
-        myLikesRef.current = data.likes || [];
-
         if (data.partnerUid) {
-          unsubPartner = onSnapshot(doc(db, 'artifacts', appId, 'users', data.partnerUid), (pSnap) => {
+          onSnapshot(doc(db, 'artifacts', appId, 'users', data.partnerUid), (pSnap) => {
             if (pSnap.exists()) {
                const pData = pSnap.data();
                setPartnerData(pData);
                
-               // NOTIFICATION SYSTÈME 1: SIGNAL DISCRET
-               if (pData.pingToPartner && pData.pingToPartner > lastSeenPingRef.current) {
+               // LOGIQUE DU SIGNAL DISCRET (PING)
+               if (pData.pingToPartner && pData.pingToPartner > lastSeenPing) {
                   if (Date.now() - pData.pingToPartner < 60000) {
                      notify(`${pData.pseudo || 'Votre partenaire'} a très envie de vous... 🔥`, '🔔');
-                     fireSystemNotification("Nouveau Signal 🔥", `${pData.pseudo || 'Votre partenaire'} a très envie de vous...`);
                   }
-                  lastSeenPingRef.current = pData.pingToPartner;
+                  setLastSeenPing(pData.pingToPartner);
                }
-
-               // NOTIFICATION SYSTÈME 2: NOUVEAU MATCH
-               const pLikes = pData.likes || [];
-               const newlyLiked = pLikes.filter(id => !prevPartnerLikesRef.current.includes(id));
-               newlyLiked.forEach(likedId => {
-                 if (myLikesRef.current.includes(likedId)) {
-                    notify("NOUVEAU MATCH PARFAIT !", "🔥");
-                    fireSystemNotification("Nouveau Match ! 🔥", `${pData.pseudo || 'Votre partenaire'} a aimé la même position que vous !`);
-                 }
-               });
-               prevPartnerLikesRef.current = pLikes;
             }
           }, (err) => console.log(err));
-
-          // NOTIFICATION SYSTÈME 3: CHAT GLOBAL
-          const chatId = [user.uid, data.partnerUid].sort().join('_');
-          const chatRef = collection(db, 'artifacts', appId, 'chats', chatId, 'messages');
-          const qChat = query(chatRef, orderBy('createdAt', 'desc'), limit(1));
-          unsubGlobalChat = onSnapshot(qChat, (cSnap) => {
-             if (!cSnap.empty) {
-                const msg = cSnap.docs[0].data();
-                // Si le message vient du partenaire et qu'il est très récent
-                if (msg.uid === data.partnerUid && msg.createdAt > Date.now() - 5000) {
-                   notify("Nouveau message secret 💌", "💬");
-                   fireSystemNotification("Message Intime 💌", msg.text);
-                }
-             }
-          });
 
           const partnerCustomCol = collection(db, 'artifacts', appId, 'users', data.partnerUid, 'customPositions');
           unsubPartnerCustom = onSnapshot(partnerCustomCol, (cSnap) => {
@@ -448,8 +415,8 @@ export default function App() {
       setMyCustomPositions(snap.docs.map(d => ({ id: d.id, ...d.data(), isCustom: true, isMine: true })));
     }, (err) => console.log(err));
 
-    return () => { unsubUser(); unsubMyCustom(); unsubPartnerCustom(); unsubGlobalChat(); unsubPartner(); };
-  }, [user]);
+    return () => { unsubUser(); unsubMyCustom(); unsubPartnerCustom(); };
+  }, [user, lastSeenPing]);
 
   // --- LOGIQUE CATÉGORIES DYNAMIQUES ---
   const displayCategories = useMemo(() => {
@@ -535,15 +502,24 @@ export default function App() {
 
   // --- ACTIONS UTILISATEUR & CREATION ---
   
-  // CONNEXION GOOGLE OBLIGATOIRE
+  // NOUVEAU: CONNEXION GOOGLE
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      // L'utilisateur est connecté, le useEffect onAuthStateChanged se chargera du reste
+      if (user && user.isAnonymous) {
+        await linkWithPopup(user, provider);
+        notify("Données sauvegardées sur Google !", "✅");
+      } else {
+        await signInWithPopup(auth, provider);
+        notify("Connecté avec Google !", "✅");
+      }
     } catch (error) {
-      console.error(error);
-      notify("Erreur lors de la connexion Google", "❌");
+      if (error.code === 'auth/credential-already-in-use') {
+         await signInWithPopup(auth, provider);
+         notify("Connecté à votre compte existant.", "✅");
+      } else {
+         notify("Erreur de connexion Google", "❌");
+      }
     }
   };
 
@@ -568,10 +544,7 @@ export default function App() {
       await updateDoc(userRef, { likes: userData.likes.filter(l => l !== id) });
     } else {
       await updateDoc(userRef, { likes: arrayUnion(id) });
-      if (partnerData?.likes?.includes(id)) {
-        notify("MATCH PARFAIT !", "🔥");
-        fireSystemNotification("Match Parfait ! 🔥", "Vous avez la même envie...");
-      }
+      if (partnerData?.likes?.includes(id)) notify("MATCH PARFAIT !", "🔥");
     }
   };
 
@@ -745,23 +718,6 @@ export default function App() {
   };
 
   if (loading) return <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center text-rose-500"><Flame className="animate-pulse" size={48} /></div>;
-
-  // NOUVEL ECRAN DE LOGIN OBLIGATOIRE
-  if (requireLogin) {
-    return (
-      <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center z-[999]">
-        <Flame className="text-rose-500 mb-6 drop-shadow-[0_0_15px_rgba(244,63,94,0.5)]" size={64} />
-        <h1 className="text-4xl font-black text-white mb-2 tracking-tighter">KAMA<span className="text-rose-500">SYNC</span></h1>
-        <p className="text-slate-400 mb-10 text-sm">Connectez-vous pour synchroniser vos données sur tous vos appareils sans rien perdre.</p>
-        <button 
-          onClick={handleGoogleLogin} 
-          className="w-full max-w-xs bg-white text-slate-900 px-6 py-4 rounded-2xl font-black transition hover:bg-slate-200 shadow-xl shadow-white/10 flex items-center justify-center gap-3"
-        >
-          <LogIn size={20} /> Connexion avec Google
-        </button>
-      </div>
-    );
-  }
 
   const sharedLikes = allPositions.filter(p => userData?.likes?.includes(p.id) && partnerData?.likes?.includes(p.id));
 
@@ -1233,14 +1189,15 @@ export default function App() {
                    <Edit2 size={14} /> Modifier mon profil
                  </button>
 
-                 {/* NOUVEAU: BOUTON DEMANDE NOTIFICATIONS */}
-                 <button 
-                   onClick={requestNotificationPermission}
-                   className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full text-xs font-black transition border shadow-lg w-full ${notificationsEnabled ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/50 hover:bg-emerald-600/40' : 'bg-rose-600/20 text-rose-400 border-rose-500/50 hover:bg-rose-600/40'}`}
-                 >
-                   <BellRing size={14} /> 
-                   {notificationsEnabled ? 'Notifications Activées' : 'Activer les notifications'}
-                 </button>
+                 {/* NOUVEAU: BOUTON SAUVEGARDE GOOGLE */}
+                 {user?.isAnonymous && (
+                   <button 
+                     onClick={handleGoogleLogin}
+                     className="flex items-center justify-center gap-2 bg-white text-slate-900 px-5 py-3 rounded-full text-xs font-black transition hover:bg-slate-200 shadow-lg shadow-white/10 w-full"
+                   >
+                     <LogIn size={14} /> Sauvegarder avec Google
+                   </button>
+                 )}
 
                  {/* NOUVEAU: BOUTON INSTALLATION */}
                  <button 
@@ -1556,4 +1513,44 @@ export default function App() {
       {showInstallTutorial && (
         <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
           <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/90 backdrop-blur-xl z-10 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => setShowInstallTutorial(false)} className="text-slate-400 p-2 bg
+            <button onClick={() => setShowInstallTutorial(false)} className="text-slate-400 p-2 bg-slate-900 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
+            <h2 className="font-black text-white tracking-tight">Installation</h2>
+            <div className="w-10"></div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-6 custom-scroll space-y-6" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            
+            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
+              <h3 className="text-base font-black text-white flex items-center gap-2">🍏 Pour iOS (iPhone)</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
+                <li>Ouvrez l'application <b>Safari</b> et allez sur <code>kama-sync.vercel.app</code></li>
+                <li>Appuyez sur l'icône <b>Partager</b> (le carré avec la flèche vers le haut) en bas de l'écran.</li>
+                <li>Faites défiler vers le bas et choisissez <b>Sur l'écran d'accueil</b>.</li>
+                <li>Appuyez sur <b>Ajouter</b>.</li>
+              </ol>
+            </div>
+
+            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
+              <h3 className="text-base font-black text-white flex items-center gap-2">🤖 Pour Android</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
+                <li>Ouvrez l'application <b>Chrome</b> et allez sur <code>kama-sync.vercel.app</code></li>
+                <li>Appuyez sur les <b>trois petits points</b> en haut à droite.</li>
+                <li>Sélectionnez <b>Ajouter à l'écran d'accueil</b> (ou Installer l'application).</li>
+                <li>Appuyez sur <b>Installer</b>.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+      `}</style>
+    </div>
+  );
+}
+
