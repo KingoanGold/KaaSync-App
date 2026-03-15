@@ -81,7 +81,7 @@ const GAMES_DATA = {
   diceActions: ["Lécher", "Masser", "Caresser", "Embrasser", "Mordiller", "Souffler sur", "Sucer", "Titiller avec la langue", "Effleurer"],
   diceZones: ["le Cou", "le Ventre", "l'Intérieur des Cuisses", "le Dos", "les Lèvres", "la Nuque", "les Seins / Pectoraux", "le Sexe", "le Creux des reins"],
   diceDurations: ["pendant 30 secondes.", "pendant 1 minute.", "pendant 2 minutes.", "jusqu'à ce que je te supplie d'arrêter.", "les yeux fermés."],
-  scenPlaces: ["Dans la shower", "Sur la table du salon", "Enfermés dans la chambre", "Dans la cuisine", "Contre un mur"],
+  scenPlaces: ["Dans la douche", "Sur la table du salon", "Enfermés dans la chambre", "Dans la cuisine", "Contre un mur"],
   scenRoles: ["Des inconnus dans un bar", "Un massage qui dérape", "Professeur et élève", "Cambrioleur et propriétaire", "Médecin et patient"],
   scenTwists: ["Avec un bandeau sur les yeux", "Sans utiliser les mains", "Dans le silence total", "La lumière doit rester allumée", "En écoutant une musique classique très fort"],
   rouletteTasks: [
@@ -99,24 +99,71 @@ const GAMES_DATA = {
   ]
 };
 
+// --- DONNÉES : CONSEILS ET ARTICLES ---
 const TIPS_DATA = [
-  { id: 't1', title: "Le consentement, moteur du désir", cat: "Communication", icon: <Shield/>, time: "2 min", content: "Le consentement n'est pas juste un 'oui' au début, c'est un dialogue continu. Vérifier si l'autre apprécie, demander 'tu aimes ça ?' ou 'je peux aller plus vite ?' n'est pas un tue-l'amour, au contraire ! C'est ce qui permet de s'abandonner totalement en sachant qu'on est en sécurité. N'hésitez pas à instaurer un 'Safe Word' (mot de sécurité) pour vos jeux les plus intenses." },
-  { id: 't2', title: "La Musique idéale pour le lit", cat: "Sensorielles", icon: <Music/>, time: "4 min", content: "La musique peut transformer une expérience banale en un moment magique. Voici nos conseils :\n\n1. Le Tempo magique (BPM) : Cherchez des musiques entre 60 et 80 BPM. Cela s'aligne sur le rythme cardiaque au repos, aidant vos corps à se synchroniser.\n2. Pas de paroles : Préférez l'instrumental (Lo-Fi, Trip-Hop, Jazz lent). Les paroles sollicitent la partie analytique du cerveau.\n3. Évitez le mode 'Aléatoire' : Créez une playlist qui évolue. Douce au début, avec un rythme qui s'intensifie, avant de redescendre pour l'aftercare." },
-  { id: 't3', title: "Réussir les positions debout", cat: "Pratique", icon: <Wind/>, time: "3 min", content: "Les positions debout ou acrobatiques nécessitent quelques précautions pour éviter les accidents.\n\n1. L'adhérence : Ne le faites pas en chaussettes sur du parquet ou dans une douche sans tapis antidérapant.\n2. La hauteur : Si vous devez porter votre partenaire, utilisez un meuble (lit, table) comme appui de départ pour soulager votre dos.\n3. La communication : Si les muscles tremblent, dites-le immédiatement. Il n'y a pas de honte à faire une pause." },
-  { id: 't4', title: "L'art délicat de l'Aftercare", cat: "Émotionnel", icon: <Heart/>, time: "3 min", content: "L'aftercare (les soins post-coïtaux) est crucial, surtout après un rapport intense. Lors de l'orgasme, le cerveau libère un cocktail d'hormones (ocytocine, dopamine) qui retombe brutalement ensuite. Pour éviter le 'blues post-sexe' :\n\n- Restez enlacés quelques minutes en silence.\n- Apportez un verre d'eau ou une petite collation.\n- Échangez des mots doux ou valorisants sur ce que vous venez de vivre.\n- Préparez une serviette tiède pour vous nettoyer mutuellement avec tendresse." },
-  { id: 't5', title: "Dirty Talk : Comment oser se lancer", cat: "Communication", icon: <MessageCircle/>, time: "4 min", content: "Le 'Dirty Talk' (parler cru) intimide souvent. Le secret est d'y aller par étapes :\n\n1. Le constat : Décrivez simplement ce que vous ressentez. 'J'adore quand tu fais ça', 'Ta peau est si chaude'.\n2. L'instruction : Donnez des directives douces. 'Plus vite', 'Regarde-moi quand tu le fais'.\n3. L'anticipation : Décrivez ce que vous allez faire. 'Je vais t'embrasser partout jusqu'à ce que tu n'en puisses plus'.\nL'important est d'utiliser un vocabulaire avec lequel vous êtes tous les deux à l'aise." },
-  { id: 't6', title: "Les zones érogènes méconnues", cat: "Sensorielles", icon: <Sparkles/>, time: "5 min", content: "Ne foncez pas directement vers les zones génitales ! Prenez le temps d'explorer ces zones souvent oubliées :\n\n- Le cuir chevelu : Un massage appuyé libère énormément de tensions.\n- Le creux des genoux et l'intérieur des poignets : La peau y est très fine et sensible.\n- La nuque et le cou : Un souffle chaud ou de légers mordillements y font des merveilles.\n- Le bas du ventre : Tracer des lignes imaginaires juste au-dessus du pubis rend l'attente insoutenable." },
-  { id: 't7', title: "Introduire des jouets dans le couple", cat: "Pratique", icon: <Zap/>, time: "4 min", content: "Un sex-toy ne remplace pas un partenaire, c'est un outil pour explorer de nouvelles sensations ensemble.\n\n- Dédiabolisez l'objet : Faites du shopping en ligne à deux pour choisir votre premier jouet.\n- Commencez petit : Un anneau vibrant ou un petit stimulateur clitoridien (bullet) est parfait pour débuter sans intimider.\n- Guidez l'autre : C'est encore plus excitant quand c'est le partenaire qui contrôle le jouet sur vous." },
-  { id: 't8', title: "L'art du Teasing (Faire monter le désir)", cat: "Préliminaires", icon: <Timer/>, time: "3 min", content: "Le sexe commence bien avant d'être dans la chambre. L'anticipation est le plus grand des aphrodisiaques :\n\n- Le matin : Laissez un post-it suggestif sur le miroir de la salle de bain.\n- La journée : Envoyez un message décrivant ce que vous portez ou ce que vous comptez lui faire le soir.\n- Le soir : Frôlez-vous dans la cuisine, embrassez-vous dans le cou, mais refusez d'aller plus loin... pour l'instant. Faites durer la frustration exquise." },
-  { id: 't9', title: "Jeux de température : Le Feu et la Glace", cat: "Sensorielles", icon: <Flame/>, time: "3 min", content: "Jouer avec le chaud et le froid réveille les terminaisons nerveuses :\n\n- Le froid : Passez un glaçon sur les lèvres de votre partenaire, le long de sa colonne vertébrale, ou gardez-le en bouche pendant le sexe oral (frissons garantis).\n- Le chaud : Utilisez de l'huile de massage chauffante ou buvez une gorgée de thé/café chaud avant d'embrasser le cou ou le ventre de votre partenaire.\n- Le contraste : Alternez immédiatement le souffle chaud de votre bouche après le passage du glaçon." },
-  { id: 't10', title: "Initiation au Bondage Léger", cat: "Découverte", icon: <Lock/>, time: "4 min", content: "Attacher son partenaire (ou l'être) crée un abandon total très excitant. Pour débuter sereinement :\n\n- N'utilisez jamais de menottes en métal (risque de blessure sans clé). Préférez des foulards en soie, des cravates souples ou des menottes en velcro.\n- Gardez toujours des ciseaux à bouts ronds à portée de main en cas de panique.\n- Ne laissez jamais la personne attachée seule dans la pièce.\n- Fixez un 'Safe Word' (ex: 'Rouge') qui stoppe instantanément le jeu si l'un de vous est mal à l'aise." },
-  { id: 't11', title: "Créer l'ambiance parfaite", cat: "Général", icon: <Star/>, time: "2 min", content: "L'environnement joue un rôle clé dans la capacité à lâcher prise :\n\n- L'éclairage : Fuyez les plafonniers ! Préférez une lumière tamisée, chaude (lampes de chevet, guirlandes) ou la lueur vacillante de quelques bougies.\n- L'ordre : Un lit défait avec des draps propres, c'est sexy. Des vêtements sales qui traînent au sol, ça l'est moins. Dégagez l'espace.\n- L'odeur : Aérez la pièce, utilisez un léger parfum d'ambiance ou de l'encens, mais sans excès." },
-  { id: 't12', title: "Le pouvoir du regard", cat: "Connexion", icon: <Eye/>, time: "3 min", content: "Le contact visuel est souvent sous-estimé car il rend très vulnérable. Pourtant, c'est l'outil de connexion ultime :\n\n- Pendant l'acte : Essayez de garder les yeux ouverts et de fixer ceux de votre partenaire pendant plusieurs minutes consécutives. La sensation de fusion est vertigineuse.\n- Le miroir : Placez-vous devant un miroir pour vous regarder faire l'amour. Le côté voyeuriste de votre propre couple est un puissant déclencheur." },
-  { id: 't13', title: "La liste Oui / Non / Peut-être", cat: "Communication", icon: <CheckCircle2/>, time: "3 min", content: "C'est un exercice génial pour les couples ! Imprimez chacun une liste détaillée de pratiques sexuelles. \n- Cochez 'Oui' (J'ai envie), 'Non' (C'est hors limite) ou 'Peut-être' (J'y réfléchis si on m'accompagne bien).\n- Comparez ensuite vos listes avec bienveillance. Vous découvrirez souvent que vous avez des fantasmes communs inavoués dans la colonne 'Peut-être' ou 'Oui' !" },
-  { id: 't14', title: "Massage sensuel : Les règles d'or", cat: "Préliminaires", icon: <Activity/>, time: "4 min", content: "Un massage sensuel n'est pas un massage thérapeutique. L'objectif est l'effleurement :\n\n- Utilisez de l'huile (préalablement réchauffée dans vos mains).\n- Ne soyez pas pressé : commencez par les épaules, descendez lentement vers les lombaires, massez les mollets et les pieds.\n- La règle d'or : Interdiction stricte de toucher les zones érogènes primaires (sexe, poitrine) pendant les 10 premières minutes. Le désir va grimper en flèche." },
-  { id: 't15', title: "Gérer les pannes et les moments gênants", cat: "Général", icon: <Info/>, time: "3 min", content: "Le sexe, ce n'est pas comme dans les films. Il y a des bruits bizarres, des crampes, des pannes d'érection ou des pertes de lubrification. C'est NORMAL.\n\n- Le rire est votre meilleur allié. Une crampe au mollet ? Riez-en ensemble, massez-la, et reprenez.\n- Une baisse de régime ? Ne focalisez pas dessus. Redescendez d'un cran : retournez aux caresses, aux baisers, sans obligation de résultat.\n- La pression de la performance est le pire ennemi de l'érection et du désir." }
+  {
+    id: 't1', title: "Le consentement, moteur du désir", cat: "Communication", icon: <Shield/>, time: "2 min",
+    content: "Le consentement n'est pas juste un 'oui' au début, c'est un dialogue continu. Vérifier si l'autre apprécie, demander 'tu aimes ça ?' ou 'je peux aller plus vite ?' n'est pas un tue-l'amour, au contraire ! C'est ce qui permet de s'abandonner totalement en sachant qu'on est en sécurité. N'hésitez pas à instaurer un 'Safe Word' (mot de sécurité) pour vos jeux les plus intenses."
+  },
+  {
+    id: 't2', title: "La Musique idéale pour le lit", cat: "Sensorielles", icon: <Music/>, time: "4 min",
+    content: "La musique peut transformer une expérience banale en un moment magique. Voici nos conseils :\n\n1. Le Tempo magique (BPM) : Cherchez des musiques entre 60 et 80 BPM. Cela s'aligne sur le rythme cardiaque au repos, aidant vos corps à se synchroniser.\n2. Pas de paroles : Préférez l'instrumental (Lo-Fi, Trip-Hop, Jazz lent). Les paroles sollicitent la partie analytique du cerveau.\n3. Évitez le mode 'Aléatoire' : Créez une playlist qui évolue. Douce au début, avec un rythme qui s'intensifie, avant de redescendre pour l'aftercare."
+  },
+  {
+    id: 't3', title: "Réussir les positions debout", cat: "Pratique", icon: <Wind/>, time: "3 min",
+    content: "Les positions debout ou acrobatiques nécessitent quelques précautions pour éviter les accidents.\n\n1. L'adhérence : Ne le faites pas en chaussettes sur du parquet ou dans une douche sans tapis antidérapant.\n2. La hauteur : Si vous devez porter votre partenaire, utilisez un meuble (lit, table) comme appui de départ pour soulager votre dos.\n3. La communication : Si les muscles tremblent, dites-le immédiatement. Il n'y a pas de honte à faire une pause."
+  },
+  {
+    id: 't4', title: "L'art délicat de l'Aftercare", cat: "Émotionnel", icon: <Heart/>, time: "3 min",
+    content: "L'aftercare (les soins post-coïtaux) est crucial, surtout après un rapport intense. Lors de l'orgasme, le cerveau libère un cocktail d'hormones (ocytocine, dopamine) qui retombe brutalement ensuite. Pour éviter le 'blues post-sexe' :\n\n- Restez enlacés quelques minutes en silence.\n- Apportez un verre d'eau ou une petite collation.\n- Échangez des mots doux ou valorisants sur ce que vous venez de vivre.\n- Préparez une serviette tiède pour vous nettoyer mutuellement avec tendresse."
+  },
+  {
+    id: 't5', title: "Dirty Talk : Comment oser se lancer", cat: "Communication", icon: <MessageCircle/>, time: "4 min",
+    content: "Le 'Dirty Talk' (parler cru) intimide souvent. Le secret est d'y aller par étapes :\n\n1. Le constat : Décrivez simplement ce que vous ressentez. 'J'adore quand tu fais ça', 'Ta peau est si chaude'.\n2. L'instruction : Donnez des directives douces. 'Plus vite', 'Regarde-moi quand tu le fais'.\n3. L'anticipation : Décrivez ce que vous allez faire. 'Je vais t'embrasser partout jusqu'à ce que tu n'en puisses plus'.\nL'important est d'utiliser un vocabulaire avec lequel vous êtes tous les deux à l'aise."
+  },
+  {
+    id: 't6', title: "Les zones érogènes méconnues", cat: "Sensorielles", icon: <Sparkles/>, time: "5 min",
+    content: "Ne foncez pas directement vers les zones génitales ! Prenez le temps d'explorer ces zones souvent oubliées :\n\n- Le cuir chevelu : Un massage appuyé libère énormément de tensions.\n- Le creux des genoux et l'intérieur des poignets : La peau y est très fine et sensible.\n- La nuque et le cou : Un souffle chaud ou de légers mordillements y font des merveilles.\n- Le bas du ventre : Tracer des lignes imaginaires juste au-dessus du pubis rend l'attente insoutenable."
+  },
+  {
+    id: 't7', title: "Introduire des jouets dans le couple", cat: "Pratique", icon: <Zap/>, time: "4 min",
+    content: "Un sex-toy ne remplace pas un partenaire, c'est un outil pour explorer de nouvelles sensations ensemble.\n\n- Dédiabolisez l'objet : Faites du shopping en ligne à deux pour choisir votre premier jouet.\n- Commencez petit : Un anneau vibrant ou un petit stimulateur clitoridien (bullet) est parfait pour débuter sans intimider.\n- Guidez l'autre : C'est encore plus excitant quand c'est le partenaire qui contrôle le jouet sur vous."
+  },
+  {
+    id: 't8', title: "L'art du Teasing (Faire monter le désir)", cat: "Préliminaires", icon: <Timer/>, time: "3 min",
+    content: "Le sexe commence bien avant d'être dans la chambre. L'anticipation est le plus grand des aphrodisiaques :\n\n- Le matin : Laissez un post-it suggestif sur le miroir de la salle de bain.\n- La journée : Envoyez un message décrivant ce que vous portez ou ce que vous comptez lui faire le soir.\n- Le soir : Frôlez-vous dans la cuisine, embrassez-vous dans le cou, mais refusez d'aller plus loin... pour l'instant. Faites durer la frustration exquise."
+  },
+  {
+    id: 't9', title: "Jeux de température : Le Feu et la Glace", cat: "Sensorielles", icon: <Flame/>, time: "3 min",
+    content: "Jouer avec le chaud et le froid réveille les terminaisons nerveuses :\n\n- Le froid : Passez un glaçon sur les lèvres de votre partenaire, le long de sa colonne vertébrale, ou gardez-le en bouche pendant le sexe oral (frissons garantis).\n- Le chaud : Utilisez de l'huile de massage chauffante ou buvez une gorgée de thé/café chaud avant d'embrasser le cou ou le ventre de votre partenaire.\n- Le contraste : Alternez immédiatement le souffle chaud de votre bouche après le passage du glaçon."
+  },
+  {
+    id: 't10', title: "Initiation au Bondage Léger", cat: "Découverte", icon: <Lock/>, time: "4 min",
+    content: "Attacher son partenaire (ou l'être) crée un abandon total très excitant. Pour débuter sereinement :\n\n- N'utilisez jamais de menottes en métal (risque de blessure sans clé). Préférez des foulards en soie, des cravates souples ou des menottes en velcro.\n- Gardez toujours des ciseaux à bouts ronds à portée de main en cas de panique.\n- Ne laissez jamais la personne attachée seule dans la pièce.\n- Fixez un 'Safe Word' (ex: 'Rouge') qui stoppe instantanément le jeu si l'un de vous est mal à l'aise."
+  },
+  {
+    id: 't11', title: "Créer l'ambiance parfaite", cat: "Général", icon: <Star/>, time: "2 min",
+    content: "L'environnement joue un rôle clé dans la capacité à lâcher prise :\n\n- L'éclairage : Fuyez les plafonniers ! Préférez une lumière tamisée, chaude (lampes de chevet, guirlandes) ou la lueur vacillante de quelques bougies.\n- L'ordre : Un lit défait avec des draps propres, c'est sexy. Des vêtements sales qui traînent au sol, ça l'est moins. Dégagez l'espace.\n- L'odeur : Aérez la pièce, utilisez un léger parfum d'ambiance ou de l'encens, mais sans excès."
+  },
+  {
+    id: 't12', title: "Le pouvoir du regard", cat: "Connexion", icon: <Eye/>, time: "3 min",
+    content: "Le contact visuel est souvent sous-estimé car il rend très vulnérable. Pourtant, c'est l'outil de connexion ultime :\n\n- Pendant l'acte : Essayez de garder les yeux ouverts et de fixer ceux de votre partenaire pendant plusieurs minutes consécutives. La sensation de fusion est vertigineuse.\n- Le miroir : Placez-vous devant un miroir pour vous regarder faire l'amour. Le côté voyeuriste de votre propre couple est un puissant déclencheur."
+  },
+  {
+    id: 't13', title: "La liste Oui / Non / Peut-être", cat: "Communication", icon: <CheckCircle2/>, time: "3 min",
+    content: "C'est un exercice génial pour les couples ! Imprimez chacun une liste détaillée de pratiques sexuelles. \n- Cochez 'Oui' (J'ai envie), 'Non' (C'est hors limite) ou 'Peut-être' (J'y réfléchis si on m'accompagne bien).\n- Comparez ensuite vos listes avec bienveillance. Vous découvrirez souvent que vous avez des fantasmes communs inavoués dans la colonne 'Peut-être' ou 'Oui' !"
+  },
+  {
+    id: 't14', title: "Massage sensuel : Les règles d'or", cat: "Préliminaires", icon: <Activity/>, time: "4 min",
+    content: "Un massage sensuel n'est pas un massage thérapeutique. L'objectif est l'effleurement :\n\n- Utilisez de l'huile (préalablement réchauffée dans vos mains).\n- Ne soyez pas pressé : commencez par les épaules, descendez lentement vers les lombaires, massez les mollets et les pieds.\n- La règle d'or : Interdiction stricte de toucher les zones érogènes primaires (sexe, poitrine) pendant les 10 premières minutes. Le désir va grimper en flèche."
+  },
+  {
+    id: 't15', title: "Gérer les pannes et les moments gênants", cat: "Général", icon: <Info/>, time: "3 min",
+    content: "Le sexe, ce n'est pas comme dans les films. Il y a des bruits bizarres, des crampes, des pannes d'érection ou des pertes de lubrification. C'est NORMAL.\n\n- Le rire est votre meilleur allié. Une crampe au mollet ? Riez-en ensemble, massez-la, et reprenez.\n- Une baisse de régime ? Ne focalisez pas dessus. Redescendez d'un cran : retournez aux caresses, aux baisers, sans obligation de résultat.\n- La pression de la performance est le pire ennemi de l'érection et du désir."
+  }
 ];
 
+// --- DONNÉES : POSITIONS (Base complète) ---
 const POSITIONS_DATA = [
   { n: "Le Missionnaire (L'indémodable)", c: "Face à face", d: 1, s: 1, desc: "Le partenaire A s'allonge sur le dos, les jambes légèrement écartées. Le partenaire B se place au-dessus en appui sur les mains ou les avant-bras. Leurs bassins s'emboîtent parfaitement, favorisant l'intimité et les baisers.", v: "Variante : Le partenaire A referme complètement ses jambes autour de celles du partenaire B pour augmenter les frictions." },
   { n: "Le Missionnaire surélevé", c: "Face à face", d: 2, s: 2, desc: "Position classique du missionnaire, mais les jambes du partenaire allongé reposent sur les épaules de celui qui est au-dessus. Cela ouvre grand le bassin et permet une pénétration bien plus profonde.", v: "Variante : Glissez un gros coussin sous les fesses du partenaire allongé pour basculer le bassin et cibler la paroi antérieure." },
@@ -138,7 +185,7 @@ const POSITIONS_DATA = [
   { n: "Le Toboggan", c: "Par derrière", d: 3, s: 4, desc: "Le receveur est à genoux mais redresse complètement son buste à la verticale, cambrant le bas du dos en arrière vers le partenaire.", v: "Variante : Le partenaire arrière entoure le buste du receveur de ses bras pour caresser son torse." },
   { n: "La Levrette debout", c: "Par derrière", d: 4, s: 5, desc: "Le partenaire A se tient debout, penché en avant en appui sur un mur ou une table. Le partenaire B se place debout derrière lui.", v: "Variante : Le receveur garde les jambes bien droites pour étirer les ischio-jambiers et resserrer l'entrée." },
   { n: "La Levrette au bord du lit", c: "Par derrière", d: 2, s: 4, desc: "Le receveur est à quatre pattes sur le matelas, face au mur. Le partenaire se tient debout sur le sol, derrière lui, à hauteur idéale.", v: "Variante : Le partenaire debout maintient les cuisses du receveur pour contrôler l'intensité." },
-  { n: "Le Lazy Dog", c: "Par derrière", d: 1, s: 2, desc: "Une levrette sans effort : le partenaire arrière s'affale littéralement sur le dos du receveur, lui faisant supporter une douce pression de son poids.", v: "Variante : Le partenaire arrière glisse ses hands sous le ventre du receveur pour le soutenir." },
+  { n: "Le Lazy Dog", c: "Par derrière", d: 1, s: 2, desc: "Une levrette sans effort : le partenaire arrière s'affale littéralement sur le dos du receveur, lui faisant supporter une douce pression de son poids.", v: "Variante : Le partenaire arrière glisse ses mains sous le ventre du receveur pour le soutenir." },
   { n: "La Levrette croisée", c: "Par derrière", d: 3, s: 4, desc: "À quatre pattes, le receveur croise fortement ses cuisses/chevilles l'une sur l'autre, créant un canal extrêmement étroit et intense pour l'actif.", v: "Variante : Alternez croisement des jambes gauche/droite toutes les minutes." },
   { n: "La Luge", c: "Par derrière", d: 3, s: 3, desc: "Le receveur est allongé sur le ventre. Le partenaire actif s'assoit à califourchon au-dessus de ses cuisses, entrant par un angle plongeant.", v: "Variante : Le partenaire assis se penche en avant pour masser les épaules du receveur." },
   { n: "L'Andromaque", c: "Au-dessus", d: 2, s: 3, desc: "Le partenaire A est allongé sur le dos. Le partenaire B s'assoit à califourchon face à lui, genoux posés sur le matelas. B contrôle totalement l'intensité et la profondeur.", v: "Variante : Le partenaire du dessus peut se pencher en avant et s'appuyer sur le torse de l'autre." },
@@ -226,7 +273,7 @@ const POSITIONS_DATA = [
   { n: "L'Angle droit", c: "Angles & Tweaks", d: 2, s: 3, desc: "Le receveur sur le dos replie ses genoux à 90 degrés et pose ses mollets sur les épaules de l'actif, formant un angle droit parfait.", v: "Variante : L'actif masse les mollets de son partenaire pendant l'action." },
   { n: "La Compression", c: "Angles & Tweaks", d: 3, s: 4, desc: "Quelle que soit la position, le receveur contracte fortement ses muscles pelviens et serre ses cuisses pour créer une sensation d'étreinte maximale.", v: "Variante : Rythmez les contractions pelviennes (Kegel) sur les mouvements de va-et-vient." },
   { n: "L'Expansion", c: "Angles & Tweaks", d: 2, s: 2, desc: "L'actif recule presque jusqu'à sortir complètement à chaque mouvement, avant de revenir profondément. Joue sur la frustration et l'anticipation.", v: "Variante : Marquez une pause d'une seconde lorsque vous êtes presque sorti, avant la pénétration." },
-  { n: "La Méditation sexuelle", c: "Sensorielles", d: 1, s: 3, desc: "Une fois emboîtés, les deux partenaires cessent tout mouvement pendant plusieurs minutes. Fermez les yeux et concentrez-vous uniquement sur les micro-pulsations de vos corps.", v: "Variante : Synchronisez votre respiration : l'un inspire quand l'autre expire." },
+  { n: "La Méditation sexuelle", c: "Sensorielles", d: 1, s: 3, desc: "Une fois emboîtés, les deux partenairesered cessent tout mouvement pendant plusieurs minutes. Fermez les yeux et concentrez-vous uniquement sur les micro-pulsations de vos corps.", v: "Variante : Synchronisez votre respiration : l'un inspire quand l'autre expire." },
   { n: "Le Slow-motion", c: "Sensorielles", d: 2, s: 4, desc: "Effectuez l'acte avec une lenteur exagérée, comme au ralenti. Chaque va-et-vient doit prendre plusieurs secondes. Idéal pour faire monter la tension.", v: "Variante : Combinez le ralenti avec un bandeau sur les yeux du receveur." },
   { n: "La Respiration synchronisée", c: "Sensorielles", d: 1, s: 2, desc: "Inspirez et expirez exactement en même temps, ventre contre ventre. Cela crée une puissante résonance énergétique et émotionnelle.", v: "Variante : Accélérez progressivement le rythme de la respiration pour faire monter l'excitation." },
   { n: "Le Contact visuel total", c: "Sensorielles", d: 1, s: 4, desc: "Interdiction formelle de fermer les yeux ou de détourner le regard, de la première caresse jusqu'à l'orgasme. Très intense et vulnérable.", v: "Variante : Ne clignez des yeux que lorsque votre partenaire le fait." },
@@ -243,6 +290,7 @@ const POSITIONS_DATA = [
 const FULL_CATALOG = POSITIONS_DATA.map((p, i) => ({
   id: `p${i}`, name: p.n, cat: p.c, diff: p.d, spice: p.s, desc: p.desc, v: p.v
 }));
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [requireLogin, setRequireLogin] = useState(false); // GESTION DE LA CONNEXION OBLIGATOIRE
@@ -1358,7 +1406,207 @@ export default function App() {
               </div>
             </div>
           </div>
-          <div className="p-6 bg-slate-950 border-t border-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem
+          <div className="p-6 bg-slate-950 border-t border-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
+            <button onClick={handleSaveProfile} className="w-full bg-rose-600 text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-600/20 active:scale-95 transition">Enregistrer</button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL POSITION DETAILS */}
+      {selectedPosition && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
+          <div className="relative pb-8 px-6 bg-gradient-to-b from-rose-950/40 to-slate-950 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 3rem)' }}>
+            <button onClick={() => {setSelectedPosition(null); setShowDeleteConfirm(false);}} className="absolute left-6 text-slate-400 bg-slate-900/50 p-2 rounded-full backdrop-blur-md hover:bg-slate-800 transition" style={{ top: 'max(env(safe-area-inset-top), 1.5rem)' }}><ArrowLeft size={20}/></button>
+            
+            {/* BOUTONS ACTIONS POUR SES PROPRES CRÉATIONS */}
+            {selectedPosition.isMine && (
+              <div className="absolute right-6 flex gap-2" style={{ top: 'max(env(safe-area-inset-top), 1.5rem)' }}>
+                 <button onClick={() => handleOpenEdit(selectedPosition)} className="text-indigo-400 bg-indigo-900/40 p-2 rounded-full backdrop-blur-md border border-indigo-500/20 hover:bg-indigo-900/60 transition"><Edit3 size={18}/></button>
+                 <button onClick={() => setShowDeleteConfirm(true)} className="text-rose-400 bg-rose-900/40 p-2 rounded-full backdrop-blur-md border border-rose-500/20 hover:bg-rose-900/60 transition"><Trash2 size={18}/></button>
+              </div>
+            )}
+
+            <div className="text-center mt-6">
+              <span className="inline-block px-3 py-1 bg-slate-900 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-rose-500/20 mb-3">{selectedPosition.cat}</span>
+              <h2 className="text-3xl font-black text-white leading-tight">{discreetMode ? "Masqué" : selectedPosition.name}</h2>
+              {selectedPosition.isPartner && <div className="mt-2 text-xs text-emerald-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1"><Users size={12}/> Création de {partnerData?.pseudo || 'votre partenaire'}</div>}
+              {selectedPosition.isMine && selectedPosition.shared === false && <div className="mt-2 text-xs text-slate-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1"><EyeOff size={12}/> Privé (non partagé)</div>}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '20px' }}>
+            
+            {showDeleteConfirm && (
+              <div className="bg-rose-900/20 border border-rose-500/30 rounded-3xl p-6 mb-6 text-center animate-in zoom-in">
+                <h3 className="text-white font-bold mb-4">Êtes-vous sûr de vouloir supprimer cette création ?</h3>
+                <div className="flex gap-2">
+                  <button onClick={handleDeletePosition} className="flex-1 bg-rose-600 text-white py-3 rounded-xl font-bold">Oui, Supprimer</button>
+                  <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold">Annuler</button>
+                </div>
+              </div>
+            )}
+
+            <div className={`space-y-6 ${discreetMode ? 'blur-md opacity-50 select-none' : ''}`}>
+               <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 relative overflow-hidden">
+                  <Info className="absolute -top-4 -right-4 text-white/5" size={120} />
+                  <h4 className="text-rose-400 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                     <Sparkles size={14}/> La Posture
+                  </h4>
+                  <p className="text-slate-300 text-sm leading-relaxed relative z-10 whitespace-pre-line">{applyDiscreet(selectedPosition.desc)}</p>
+               </div>
+
+               {selectedPosition.v && (
+                 <div className="bg-indigo-900/20 border border-indigo-500/20 rounded-3xl p-6">
+                    <h4 className="text-indigo-400 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                       <RefreshCw size={14}/> Variante & Astuce
+                    </h4>
+                    <p className="text-slate-300 text-sm leading-relaxed">{applyDiscreet(selectedPosition.v)}</p>
+                 </div>
+               )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 my-8">
+              <div className="bg-slate-900/40 p-5 rounded-3xl border border-slate-800 text-center">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Physique</span>
+                <div className="flex justify-center gap-1.5">{[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full ${i < selectedPosition.diff ? 'bg-indigo-500' : 'bg-slate-800'}`}/>)}</div>
+              </div>
+              <div className="bg-slate-900/40 p-5 rounded-3xl border border-slate-800 text-center">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Intensité</span>
+                <div className="flex justify-center gap-1.5">{[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full ${i < selectedPosition.spice ? 'bg-rose-500' : 'bg-slate-800'}`}/>)}</div>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 bg-slate-950 border-t border-slate-900 shrink-0" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
+            <button onClick={() => handleLike(selectedPosition.id)} className={`w-full py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${userData?.likes?.includes(selectedPosition.id) ? 'bg-slate-800 text-rose-500' : 'bg-rose-600 text-white'}`}>
+              <Heart fill={userData?.likes?.includes(selectedPosition.id) ? "currentColor" : "none"} size={18} />
+              {userData?.likes?.includes(selectedPosition.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CREATION & EDITION */}
+      {isCreating && (
+        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-full duration-300">
+          <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+            <button onClick={() => {setIsCreating(false); setEditPosId(null);}} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+            <h2 className="font-black text-white">{editPosId ? 'Modifier' : 'Créer'}</h2>
+            <div className="w-9"/>
+          </header>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '20px' }}>
+            
+            {/* BOUTON DE PARTAGE (PRIVÉ VS PARTENAIRE) */}
+            <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+               <div>
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Visibilité</span>
+                 <span className={`text-sm font-bold ${newPos.shared ? 'text-emerald-400' : 'text-slate-400'}`}>
+                   {newPos.shared ? 'Partagée avec mon partenaire' : 'Privée (Moi uniquement)'}
+                 </span>
+               </div>
+               <button 
+                 onClick={() => setNewPos({...newPos, shared: !newPos.shared})} 
+                 className={`w-14 h-8 rounded-full relative transition-colors ${newPos.shared ? 'bg-emerald-500' : 'bg-slate-700'}`}
+               >
+                 <div className={`w-6 h-6 rounded-full bg-white absolute top-1 transition-transform ${newPos.shared ? 'translate-x-7' : 'translate-x-1'}`}/>
+               </button>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nom de la position</label>
+              <input className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base" placeholder="Ex: Le Volcan..." value={newPos.name} onChange={(e) => setNewPos({...newPos, name: e.target.value})} />
+            </div>
+
+            {/* SELECTION CATÉGORIE + NOUVELLE */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Catégorie</label>
+              <select className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base appearance-none" value={newPos.cat} onChange={(e) => setNewPos({...newPos, cat: e.target.value})}>
+                {displayCategories.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
+                <option value="NEW">+ Créer une nouvelle catégorie...</option>
+              </select>
+              
+              {newPos.cat === 'NEW' && (
+                <div className="mt-3 animate-in fade-in slide-in-from-top-2">
+                  <input className="w-full bg-indigo-900/20 border border-indigo-500/50 focus:border-indigo-400 p-4 rounded-2xl outline-none text-indigo-300 text-base placeholder:text-indigo-900/50" placeholder="Nom de votre nouvelle catégorie" value={newPos.newCat} onChange={(e) => setNewPos({...newPos, newCat: e.target.value})} autoFocus />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Physique ({newPos.diff}/5)</label>
+                <input type="range" min="1" max="5" value={newPos.diff} onChange={(e) => setNewPos({...newPos, diff: parseInt(e.target.value)})} className="w-full accent-indigo-500" />
+              </div>
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Intensité ({newPos.spice}/5)</label>
+                <input type="range" min="1" max="5" value={newPos.spice} onChange={(e) => setNewPos({...newPos, spice: parseInt(e.target.value)})} className="w-full accent-rose-500" />
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Description de la Posture</label>
+              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-5 rounded-2xl outline-none h-32 text-base leading-relaxed text-slate-300 resize-none" placeholder="Décrivez comment se placer..." value={newPos.desc} onChange={(e) => setNewPos({...newPos, desc: e.target.value})} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variante (Optionnel)</label>
+              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 p-5 rounded-2xl outline-none h-24 text-base leading-relaxed text-slate-300 resize-none" placeholder="Une astuce ou variante pour pimenter..." value={newPos.v} onChange={(e) => setNewPos({...newPos, v: e.target.value})} />
+            </div>
+
+          </div>
+          <div className="p-6 bg-slate-950 border-t border-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
+             <button onClick={handleSavePosition} className="w-full bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all active:scale-[0.98]">
+               {editPosId ? 'Enregistrer les modifications' : (newPos.shared ? 'Créer et Partager' : 'Créer Secrètement')}
+             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TIP */}
+      {selectedTip && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
+          <header className="px-6 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+            <button onClick={() => setSelectedTip(null)} className="text-slate-400 bg-slate-800 p-2 rounded-full hover:bg-slate-700 transition"><ArrowLeft size={20}/></button>
+          </header>
+          <div className="flex-1 overflow-y-auto px-6 py-8 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+             <h2 className="text-3xl font-black text-white mb-6 leading-tight">{selectedTip.title}</h2>
+             <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">{selectedTip.content}</div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL INSTALLATION ECRAN ACCUEIL */}
+      {showInstallTutorial && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
+          <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/90 backdrop-blur-xl z-10 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+            <button onClick={() => setShowInstallTutorial(false)} className="text-slate-400 p-2 bg-slate-900 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
+            <h2 className="font-black text-white tracking-tight">Installation</h2>
+            <div className="w-10"></div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-6 custom-scroll space-y-6" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+            
+            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
+              <h3 className="text-base font-black text-white flex items-center gap-2">🍏 Pour iOS (iPhone)</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
+                <li>Ouvrez l'application <b>Safari</b> et allez sur <code>kama-sync.vercel.app</code></li>
+                <li>Appuyez sur l'icône <b>Partager</b> (le carré avec la flèche vers le haut) en bas de l'écran.</li>
+                <li>Faites défiler vers le bas et choisissez <b>Sur l'écran d'accueil</b>.</li>
+                <li>Appuyez sur <b>Ajouter</b>.</li>
+              </ol>
+            </div>
+
+            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
+              <h3 className="text-base font-black text-white flex items-center gap-2">🤖 Pour Android</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
+                <li>Ouvrez l'application <b>Chrome</b> et allez sur <code>kama-sync.vercel.app</code></li>
+                <li>Appuyez sur les <b>trois petits points</b> en haut à droite.</li>
+                <li>Sélectionnez <b>Ajouter à l'écran d'accueil</b> (ou Installer l'application).</li>
+                <li>Appuyez sur <b>Installer</b>.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -1369,4 +1617,3 @@ export default function App() {
     </div>
   );
 }
-
