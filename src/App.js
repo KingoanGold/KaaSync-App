@@ -207,7 +207,7 @@ const POSITIONS_DATA = [
   { n: "L'Étau", c: "De côté", d: 2, s: 3, desc: "En cuillère, le partenaire arrière verrouille fermement ses deux jambes autour de la jambe inférieure du partenaire avant.", v: "Variante : Le receveur pousse vers l'arrière à chaque mouvement pour contrer la poussée." },
   { n: "La Cuillère surélevée", c: "De côté", d: 2, s: 3, desc: "En cuillère classique, le partenaire receveur lève sa jambe supérieure (celle du dessus) vers le plafond pour ouvrir largement l'accès.", v: "Variante : Le partenaire arrière attrape cette jambe levée pour stabiliser la position." },
   { n: "Le V incliné", c: "De côté", d: 3, s: 3, desc: "Les deux partenaires sont sur le flanc, mais leurs bustes s'éloignent pour form un V, seuls leurs bassins restent connectés au centre.", v: "Variante : Le partenaire avant regarde par-dessus son épaule pour maintenir le contact visuel." },
-  { n: "Le Croissant de lune", c: "De côté", d: 2, s: 2, desc: "Une cuillère où les deux partenaires courbent fortement leur dos et rentrent la tête pour former un cocon en arc de cercle.", v: "Variante : Le partenaire arrière masse la nuque du partenaire avant avec des mouvements lents." },
+  { n: "Le Croissant de lune", c: "De côté", d: 2, s: 2, desc: "Une cuillère où les deux partenaires courbent fortement leur dos et rentrent la tête pour form un cocon en arc de cercle.", v: "Variante : Le partenaire arrière masse la nuque du partenaire avant avec des mouvements lents." },
   { n: "Le Noeud amoureux", c: "De côté", d: 3, s: 3, desc: "Face à face sur le côté, chaque partenaire enlace ses jambes autour des cuisses de l'autre. Une véritable fusion des corps difficile à dénouer.", v: "Variante : Balancez doucement vos corps d'avant en arrière de façon synchronisée." },
   { n: "L'Étoile Filante", c: "De côté", d: 2, s: 3, desc: "Le partenaire A est sur le dos. Le partenaire B est allongé sur le côté, formant un T parfait avec le corps de A.", v: "Variante : B glisse une main sous le creux des reins de A pour créer une légère cambrure." },
   { n: "Le Poteau", c: "Debout & Acrobatique", d: 4, s: 4, desc: "Le receveur se tient debout, le dos fermement plaqué contre un mur. Le partenaire actif se tient debout face à lui pour la pénétration.", v: "Variante : Le receveur lève une jambe et l'enroule autour de la hanche du partenaire." },
@@ -341,22 +341,16 @@ export default function App() {
 
   // --- FIREBASE INIT ---
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (e) { setLoading(false); }
-    };
-    initAuth();
-    const unsub = onAuthStateChanged(auth, setUser);
+    // Écoute de l'état de connexion. Si l'utilisateur n'est pas co, on arrête le loading pour afficher l'écran.
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) setLoading(false);
+    });
     return () => unsub();
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.isAnonymous) return;
     const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
     let unsubPartnerCustom = () => {};
 
@@ -364,9 +358,9 @@ export default function App() {
       if (!snap.exists()) {
         const initial = { 
           uid: user.uid, 
-          pseudo: 'Anonyme', 
+          pseudo: user.displayName || 'Anonyme', 
           bio: 'Explorateur de sensations...',
-          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}&backgroundColor=1e293b`,
+          avatarUrl: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}&backgroundColor=1e293b`,
           likes: [], 
           pairCode: Math.random().toString(36).substring(2, 8).toUpperCase(), 
           partnerUid: null,
@@ -501,8 +495,6 @@ export default function App() {
   };
 
   // --- ACTIONS UTILISATEUR & CREATION ---
-  
-  // NOUVEAU: CONNEXION GOOGLE
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -594,7 +586,6 @@ export default function App() {
     setEditPosId(null);
     setNewPos({ name: '', cat: 'Face à face', newCat: '', desc: '', v: '', diff: 3, spice: 3, shared: true });
     
-    // REDIRECTION AUTOMATIQUE VERS LE CATALOGUE POUR VOIR LA NOUVELLE POSITION
     setActiveTab('explorer');
   };
 
@@ -618,17 +609,14 @@ export default function App() {
     }
 
     try {
-      // Recherche de l'utilisateur qui possède ce pairCode dans la base de données
       const q = query(collection(db, 'artifacts', appId, 'users'), where("pairCode", "==", partnerCodeInput));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        // Personne ne possède ce code
         notify("Ce code n'appartient à personne. Vérifiez les lettres.", "❌");
         return;
       }
 
-      // Si le partenaire existe, on récupère son vrai UID Firebase
       const partnerDoc = querySnapshot.docs[0];
       const actualPartnerUid = partnerDoc.id;
 
@@ -641,7 +629,6 @@ export default function App() {
     }
   };
 
-  // FONCTION POUR DÉLIER LE PARTENAIRE
   const handleUnlinkPartner = async () => {
     if (!user) return;
     if (window.confirm("⚠️ Attention : Voulez-vous vraiment vous séparer de ce partenaire ? Vous ne verrez plus vos données communes.")) {
@@ -655,7 +642,6 @@ export default function App() {
   useEffect(() => {
     if (!isChatOpen || !user || !userData?.partnerUid) return;
     
-    // Création d'un ID de chat unique combinant les deux UID, toujours dans le même ordre
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
     const q = query(
       collection(db, 'artifacts', appId, 'chats', chatId, 'messages'), 
@@ -671,7 +657,6 @@ export default function App() {
   }, [isChatOpen, user, userData?.partnerUid]);
 
   useEffect(() => {
-    // Auto-scroll vers le bas quand un nouveau message arrive
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isChatOpen]);
 
@@ -681,7 +666,7 @@ export default function App() {
     
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
     const msgText = newMessage.trim();
-    setNewMessage(''); // Vider le champ immédiatement pour la réactivité
+    setNewMessage(''); 
     
     await addDoc(collection(db, 'artifacts', appId, 'chats', chatId, 'messages'), {
       text: msgText,
@@ -719,9 +704,40 @@ export default function App() {
 
   if (loading) return <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center text-rose-500"><Flame className="animate-pulse" size={48} /></div>;
 
+  // --- NOUVEAU : ÉCRAN DE CONNEXION OBLIGATOIRE AU DÉMARRAGE ---
+  if (!user || user.isAnonymous) {
+    return (
+      <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center z-[300]" style={{ WebkitTapHighlightColor: 'transparent' }}>
+        <Flame fill="currentColor" size={72} className="text-rose-500 mb-6 drop-shadow-[0_0_20px_rgba(244,63,94,0.6)] animate-pulse" />
+        <h1 className="text-4xl font-black text-white mb-2 tracking-tighter">KAMA<span className="text-rose-500">SYNC</span></h1>
+        <p className="text-slate-400 mb-10 text-sm max-w-sm">Connectez-vous de façon sécurisée pour sauvegarder votre profil, synchroniser votre duo et recevoir les notifications.</p>
+        <button 
+          onClick={async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+              if (user && user.isAnonymous) {
+                await linkWithPopup(user, provider);
+              } else {
+                await signInWithPopup(auth, provider);
+              }
+            } catch (error) {
+              if (error.code === 'auth/credential-already-in-use') {
+                 await signInWithPopup(auth, provider);
+              } else {
+                 console.log(error);
+              }
+            }
+          }}
+          className="flex items-center justify-center gap-3 bg-white text-slate-900 px-8 py-4 rounded-full text-base font-black transition active:scale-95 shadow-xl shadow-white/20 w-full max-w-xs"
+        >
+          <LogIn size={20} /> Continuer avec Google
+        </button>
+      </div>
+    );
+  }
+
   const sharedLikes = allPositions.filter(p => userData?.likes?.includes(p.id) && partnerData?.likes?.includes(p.id));
 
-  // ROOT CONTAINER FIX: fixed inset-0 au lieu de h-screen pour éviter le bug 100vh de Safari iPhone
   return (
     <div className="fixed inset-0 bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden" style={{ WebkitTapHighlightColor: 'transparent' }}>
       
@@ -1189,16 +1205,6 @@ export default function App() {
                    <Edit2 size={14} /> Modifier mon profil
                  </button>
 
-                 {/* NOUVEAU: BOUTON SAUVEGARDE GOOGLE */}
-                 {user?.isAnonymous && (
-                   <button 
-                     onClick={handleGoogleLogin}
-                     className="flex items-center justify-center gap-2 bg-white text-slate-900 px-5 py-3 rounded-full text-xs font-black transition hover:bg-slate-200 shadow-lg shadow-white/10 w-full"
-                   >
-                     <LogIn size={14} /> Sauvegarder avec Google
-                   </button>
-                 )}
-
                  {/* NOUVEAU: BOUTON INSTALLATION */}
                  <button 
                    onClick={() => setShowInstallTutorial(true)}
@@ -1454,103 +1460,4 @@ export default function App() {
             {/* SELECTION CATÉGORIE + NOUVELLE */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Catégorie</label>
-              <select className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none text-white text-base appearance-none" value={newPos.cat} onChange={(e) => setNewPos({...newPos, cat: e.target.value})}>
-                {displayCategories.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
-                <option value="NEW">+ Créer une nouvelle catégorie...</option>
-              </select>
-              
-              {newPos.cat === 'NEW' && (
-                <div className="mt-3 animate-in fade-in slide-in-from-top-2">
-                  <input className="w-full bg-indigo-900/20 border border-indigo-500/50 focus:border-indigo-400 p-4 rounded-2xl outline-none text-indigo-300 text-base placeholder:text-indigo-900/50" placeholder="Nom de votre nouvelle catégorie" value={newPos.newCat} onChange={(e) => setNewPos({...newPos, newCat: e.target.value})} autoFocus />
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Physique ({newPos.diff}/5)</label>
-                <input type="range" min="1" max="5" value={newPos.diff} onChange={(e) => setNewPos({...newPos, diff: parseInt(e.target.value)})} className="w-full accent-indigo-500" />
-              </div>
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Intensité ({newPos.spice}/5)</label>
-                <input type="range" min="1" max="5" value={newPos.spice} onChange={(e) => setNewPos({...newPos, spice: parseInt(e.target.value)})} className="w-full accent-rose-500" />
-              </div>
-            </div>
-            
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Description de la Posture</label>
-              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-5 rounded-2xl outline-none h-32 text-base leading-relaxed text-slate-300 resize-none" placeholder="Décrivez comment se placer..." value={newPos.desc} onChange={(e) => setNewPos({...newPos, desc: e.target.value})} />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variante (Optionnel)</label>
-              <textarea className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 p-5 rounded-2xl outline-none h-24 text-base leading-relaxed text-slate-300 resize-none" placeholder="Une astuce ou variante pour pimenter..." value={newPos.v} onChange={(e) => setNewPos({...newPos, v: e.target.value})} />
-            </div>
-
-          </div>
-          <div className="p-6 bg-slate-950 border-t border-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }}>
-             <button onClick={handleSavePosition} className="w-full bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all active:scale-[0.98]">
-               {editPosId ? 'Enregistrer les modifications' : (newPos.shared ? 'Créer et Partager' : 'Créer Secrètement')}
-             </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TIP */}
-      {selectedTip && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
-          <header className="px-6 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => setSelectedTip(null)} className="text-slate-400 bg-slate-800 p-2 rounded-full hover:bg-slate-700 transition"><ArrowLeft size={20}/></button>
-          </header>
-          <div className="flex-1 overflow-y-auto px-6 py-8 custom-scroll" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
-             <h2 className="text-3xl font-black text-white mb-6 leading-tight">{selectedTip.title}</h2>
-             <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">{selectedTip.content}</div>
-          </div>
-        </div>
-      )}
-
-      {/* NOUVEAU: MODAL INSTALLATION ECRAN ACCUEIL SANS IMAGE */}
-      {showInstallTutorial && (
-        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-bottom duration-300">
-          <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/90 backdrop-blur-xl z-10 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-            <button onClick={() => setShowInstallTutorial(false)} className="text-slate-400 p-2 bg-slate-900 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
-            <h2 className="font-black text-white tracking-tight">Installation</h2>
-            <div className="w-10"></div>
-          </header>
-
-          <div className="flex-1 overflow-y-auto p-6 custom-scroll space-y-6" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
-            
-            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
-              <h3 className="text-base font-black text-white flex items-center gap-2">🍏 Pour iOS (iPhone)</h3>
-              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
-                <li>Ouvrez l'application <b>Safari</b> et allez sur <code>kama-sync.vercel.app</code></li>
-                <li>Appuyez sur l'icône <b>Partager</b> (le carré avec la flèche vers le haut) en bas de l'écran.</li>
-                <li>Faites défiler vers le bas et choisissez <b>Sur l'écran d'accueil</b>.</li>
-                <li>Appuyez sur <b>Ajouter</b>.</li>
-              </ol>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] space-y-4">
-              <h3 className="text-base font-black text-white flex items-center gap-2">🤖 Pour Android</h3>
-              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300 font-medium">
-                <li>Ouvrez l'application <b>Chrome</b> et allez sur <code>kama-sync.vercel.app</code></li>
-                <li>Appuyez sur les <b>trois petits points</b> en haut à droite.</li>
-                <li>Sélectionnez <b>Ajouter à l'écran d'accueil</b> (ou Installer l'application).</li>
-                <li>Appuyez sur <b>Installer</b>.</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-      `}</style>
-    </div>
-  );
-}
-
+              <select className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 p-4 rounded-2xl outline-none
