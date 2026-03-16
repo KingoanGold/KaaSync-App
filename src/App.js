@@ -1268,31 +1268,6 @@ export default function App() {
                      <ChevronRight className="text-slate-600" />
                    </div>
 
-{/* LA JAUGE DE TENSION INVISIBLE */}
-<div className={`border rounded-[2rem] p-6 text-center transition-all duration-1000 mt-6 ${combinedTension > 80 ? 'bg-rose-950/80 border-rose-500 shadow-[0_0_40px_rgba(244,63,94,0.4)]' : 'bg-slate-900 border-slate-800'}`}>
-  <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest flex items-center justify-center gap-2">
-    <Flame size={18} className={combinedTension > 80 ? "text-rose-500 animate-pulse" : "text-amber-500"}/> 
-    Tension Cumulée
-  </h3>
-  
-  {combinedTension > 80 && (
-    <div className="bg-rose-600 text-white font-black text-[10px] px-3 py-1 rounded-full uppercase mb-4 inline-block animate-bounce shadow-lg shadow-rose-900/50">
-      🔥 Alerte Canicule : Rentrez chez vous 🔥
-    </div>
-  )}
-  
-  <p className="text-xs text-slate-400 mb-4 px-4">Ajustez votre envie. Votre partenaire ne verra que la moyenne de vos deux jauges.</p>
-  
-  <div className="relative pt-1">
-    <input 
-      type="range" min="0" max="100" 
-      value={myTension} 
-      onChange={(e) => updateTension(parseInt(e.target.value))}
-      className="w-full h-3 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-rose-500"
-    />
-  </div>
-</div>
-
 
                    {/* HUMEUR DU JOUR AVEC PROFIL CLICABLE */}
                    <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6">
