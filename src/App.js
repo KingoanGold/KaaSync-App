@@ -100,50 +100,6 @@ const GAMES_DATA = {
   ]
 };
 
-  // 1. Logique : Mettre à jour sa propre jauge
-  const updateTension = async (value) => {
-    setMyTension(value);
-    if (user) {
-      await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { tension: value });
-    }
-  };
-
-  // 2. Logique : Calcul de la tension moyenne (invisible)
-  const combinedTension = useMemo(() => {
-    const mine = userData?.tension || 0;
-    const theirs = partnerData?.tension || 0;
-    return Math.round((mine + theirs) / 2);
-  }, [userData, partnerData]);
-
-  // 3. Logique : Ajouter un fantasme
-  const addFantasy = async () => {
-    if (!fantasyText.trim() || !user || !userData?.partnerUid) return;
-    const chatId = [user.uid, userData.partnerUid].sort().join('_');
-    await addDoc(collection(db, 'artifacts', appId, 'chats', chatId, 'fantasies'), {
-      text: fantasyText.trim(),
-      author: user.uid,
-      drawn: false,
-      createdAt: Date.now()
-    });
-    setFantasyText('');
-    notify("Fantasme glissé dans la boîte 🤫", "✨");
-  };
-
-  // 4. Logique : Piocher le fantasme de l'autre
-  const drawFantasy = async () => {
-    const undrawn = fantasies.filter(f => !f.drawn && f.author !== user.uid);
-    if (undrawn.length === 0) {
-      notify("La boîte de votre partenaire est vide !", "📭");
-      return;
-    }
-    const randomF = undrawn[Math.floor(Math.random() * undrawn.length)];
-    setDrawnFantasy(randomF.text);
-    const chatId = [user.uid, userData.partnerUid].sort().join('_');
-    // On marque le fantasme comme lu pour ne pas retomber dessus
-    await updateDoc(doc(db, 'artifacts', appId, 'chats', chatId, 'fantasies', randomF.id), { drawn: true });
-  };
-
-
 // --- DONNÉES : CONSEILS ET ARTICLES ---
 const TIPS_DATA = [
   {
@@ -415,7 +371,6 @@ export default function App() {
     }
   }, []);
 
-  
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -1252,7 +1207,6 @@ export default function App() {
                      </div>
                      <ChevronRight className="text-slate-600" />
                    </div>
-
 
                    {/* HUMEUR DU JOUR AVEC PROFIL CLICABLE */}
                    <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6">
