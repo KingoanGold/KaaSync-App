@@ -226,6 +226,16 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // --- NOUVEAU : PING D'ACTIVITÉ EN LIGNE ---
+  // S'actualise discrètement quand l'utilisateur change d'onglet, ouvre un jeu ou le chat
+  useEffect(() => {
+    if (user) {
+      updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { 
+        lastActive: Date.now() 
+      }).catch(err => console.error("Erreur mise à jour lastActive:", err));
+    }
+  }, [user, activeTab, activeGame, isChatOpen]);
+
   // --- ÉCOUTE DES COMMANDES ADMIN ---
   useEffect(() => {
     if (!user) return;
