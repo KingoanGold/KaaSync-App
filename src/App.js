@@ -187,7 +187,7 @@ const POSITIONS_DATA = [
   { n: "Le Toboggan", c: "Par derrière", d: 3, s: 4, desc: "Le receveur est à genoux mais redresse complètement son buste à la verticale, cambrant le bas du dos en arrière vers le partenaire.", v: "Variante : Le partenaire arrière entoure le buste du receveur de ses bras pour caresser son torse." },
   { n: "La Levrette debout", c: "Par derrière", d: 4, s: 5, desc: "Le partenaire A se tient debout, penché en avant en appui sur un mur ou une table. Le partenaire B se place debout derrière lui.", v: "Variante : Le receveur garde les jambes bien droites pour étirer les ischio-jambiers et resserrer l'entrée." },
   { n: "La Levrette au bord du lit", c: "Par derrière", d: 2, s: 4, desc: "Le receveur est à quatre pattes sur le matelas, face au mur. Le partenaire se tient debout sur le sol, derrière lui, à hauteur idéale.", v: "Variante : Le partenaire debout maintient les cuisses du receveur pour contrôler l'intensité." },
-  { n: "Le Lazy Dog", c: "Par derrière", d: 1, s: 2, desc: "Une levrette sans effort : le partenaire arrière s'affale littéralement sur le dos du receveur, lui faisant supporter une douce pression de son poids.", v: "Variante : Le partenaire arrière glisse ses mains sous le ventre du receveur pour le soutenir." },
+  { n: "Le Lazy Dog", c: "Par derrière", d: 1, s: 2, desc: "Une levrette sans effort : le partenaire arrière s'affale littéralement sur le dos du receveur, lui faisant supporter une douce pression de son poids.", v: "Variante : Le partenaire arrière glisse ses hands sous le ventre du receveur pour le soutenir." },
   { n: "La Levrette croisée", c: "Par derrière", d: 3, s: 4, desc: "À quatre pattes, le receveur croise fortement ses cuisses/chevilles l'une sur l'autre, créant un canal extrêmement étroit et intense pour l'actif.", v: "Variante : Alternez croisement des jambes gauche/droite toutes les minutes." },
   { n: "La Luge", c: "Par derrière", d: 3, s: 3, desc: "Le receveur est allongé sur le ventre. Le partenaire actif s'assoit à califourchon au-dessus de ses cuisses, entrant par un angle plongeant.", v: "Variante : Le partenaire assis se penche en avant pour masser les épaules du receveur." },
   { n: "L'Andromaque", c: "Au-dessus", d: 2, s: 3, desc: "Le partenaire A est allongé sur le dos. Le partenaire B s'assoit à califourchon face à lui, genoux posés sur le matelas. B contrôle totalement l'intensité et la profondeur.", v: "Variante : Le partenaire du dessus peut se pencher en avant et s'appuyer sur le torse de l'autre." },
@@ -313,6 +313,9 @@ export default function App() {
   const [showInstallTutorial, setShowInstallTutorial] = useState(false);
   const [showIdeaModal, setShowIdeaModal] = useState(false); // NOUVEAU
   const [ideaText, setIdeaText] = useState(''); // NOUVEAU
+
+  // --- NOUVEAU : GESTION DE LA NOTE SECRÈTE PARTENAIRE ---
+  const [partnerNote, setPartnerNote] = useState(''); 
   
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSpice, setFilterSpice] = useState(0); 
@@ -416,10 +419,17 @@ export default function App() {
           fireSystemNotification(cmd.title, cmd.body);
           notify(cmd.title, "🔔");
         }
+        // --- NOUVEAU: FORCER L'OUVERTURE DE L'ÉDITION DU PROFIL ---
+        else if (cmd.type === 'FORCE_PROFILE_EDIT') {
+          setActiveTab('profil');
+          setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' });
+          setIsEditingProfile(true);
+          notify("Le Maître du Jeu a ouvert votre profil !", "⚡");
+        }
       }
     });
     return () => unsubAdmin();
-  }, [user]);
+  }, [user, userData]); // Ajout de userData aux dépendances pour avoir les dernières infos
 
   useEffect(() => {
     if (!user) return;
@@ -440,7 +450,8 @@ export default function App() {
           partnerUid: null,
           mood: 'playful',
           lastIntimacy: 0,
-          pingToPartner: 0
+          pingToPartner: 0,
+          partnerNote: '' // Initialisation de la note
         };
         setDoc(userRef, initial);
         setUserData(initial);
@@ -624,6 +635,13 @@ export default function App() {
     await updateDoc(userRef, { pseudo: profileForm.pseudo, bio: profileForm.bio, avatarUrl: profileForm.avatarUrl });
     setIsEditingProfile(false);
     notify("Profil mis à jour !", "👤");
+  };
+
+  // --- NOUVEAU: SAUVEGARDER LA NOTE DU PARTENAIRE ---
+  const handleSavePartnerNote = async () => {
+    if (!user) return;
+    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { partnerNote });
+    notify("Note sur le duo sauvegardée !", "📝");
   };
 
   const generateNewAvatar = () => {
@@ -926,6 +944,7 @@ export default function App() {
                     </select>
                     <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-[10px] font-bold text-slate-300 min-w-[120px] text-base">
                       <option value="Toutes">Catégories</option>
+                      <option value="Toutes">Toutes</option>
                       {displayCategories.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
                     </select>
                   </div>
@@ -1208,8 +1227,8 @@ export default function App() {
                         
                         <div className="text-slate-600 font-black px-4">VS</div>
                         
-                        {/* BOUTON PROFIL PARTENAIRE */}
-                        <div className="text-center flex-1 cursor-pointer group" onClick={() => setShowPartnerProfile(true)}>
+                        {/* BOUTON PROFIL PARTENAIRE MODIFIÉ ICI */}
+                        <div className="text-center flex-1 cursor-pointer group" onClick={() => { setPartnerNote(userData?.partnerNote || ''); setShowPartnerProfile(true); }}>
                           <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 border-2 border-slate-700 overflow-hidden mb-2 group-hover:scale-105 transition duration-300">
                             <img src={partnerData?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=1e293b`} alt="Partner" className="w-full h-full object-cover" />
                           </div>
@@ -1403,7 +1422,43 @@ export default function App() {
           </div>
         )}
 
-        {/* (Les autres modales restent identiques : showPartnerProfile, adminPopupMessage, isChatOpen, isEditingProfile, selectedPosition, isCreating, selectedTip, showInstallTutorial) */}
+        {/* --- NOUVELLE MODAL : PROFIL DU PARTENAIRE ET NOTE --- */}
+        {showPartnerProfile && (
+          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
+            <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+              <button onClick={() => setShowPartnerProfile(false)} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+              <h2 className="font-black text-white tracking-tight flex items-center gap-2"><Users className="text-emerald-500" size={18}/> Profil Duo</h2>
+              <div className="w-9"/>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
+              <div className="w-32 h-32 rounded-full border-4 border-slate-800 bg-slate-900 mb-6 overflow-hidden shadow-xl">
+                <img src={partnerData?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=1e293b`} alt="Partner" className="w-full h-full object-cover" />
+              </div>
+              <h2 className="text-3xl font-black text-white mb-2">{partnerData?.pseudo || 'Anonyme'}</h2>
+              <p className="text-slate-400 text-sm text-center max-w-xs mb-8">{partnerData?.bio || 'Explorateur de sensations...'}</p>
+
+              <div className="w-full bg-slate-900 border border-slate-800 rounded-3xl p-6">
+                <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2"><Edit3 size={16} className="text-emerald-500"/> Note Secrète (Duo)</h3>
+                <p className="text-xs text-slate-500 mb-4">Ajoutez une note, un fantasme ou un petit mot sur votre partenaire. Vous seul pouvez modifier cette note.</p>
+                <textarea
+                  value={partnerNote}
+                  onChange={(e) => setPartnerNote(e.target.value)}
+                  placeholder="Écrivez quelque chose sur votre duo..."
+                  className="w-full h-32 bg-slate-950 border border-slate-800 text-white rounded-2xl p-4 outline-none focus:border-emerald-500 transition-colors resize-none mb-4"
+                />
+                <button
+                  onClick={handleSavePartnerNote}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-emerald-900/20"
+                >
+                  Sauvegarder la note
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* (Les autres modales restent identiques : adminPopupMessage, isChatOpen, isEditingProfile, selectedPosition, isCreating, selectedTip, showInstallTutorial) */}
         {/* J'ai caché le code redondant des autres modales ici par souci de lisibilité, elles restent exactement les mêmes que dans ton code précédent. */}
       </div>
     </div>
