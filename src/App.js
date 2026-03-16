@@ -100,6 +100,56 @@ const GAMES_DATA = {
   ]
 };
 
+  // --- NOUVEAUX ÉTATS : TENSION & FANTASMES ---
+  const [myTension, setMyTension] = useState(50);
+  const [fantasyText, setFantasyText] = useState('');
+  const [fantasies, setFantasies] = useState([]);
+  const [drawnFantasy, setDrawnFantasy] = useState(null);
+
+  // 1. Logique : Mettre à jour sa propre jauge
+  const updateTension = async (value) => {
+    setMyTension(value);
+    if (user) {
+      await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { tension: value });
+    }
+  };
+
+  // 2. Logique : Calcul de la tension moyenne (invisible)
+  const combinedTension = useMemo(() => {
+    const mine = userData?.tension || 0;
+    const theirs = partnerData?.tension || 0;
+    return Math.round((mine + theirs) / 2);
+  }, [userData, partnerData]);
+
+  // 3. Logique : Ajouter un fantasme
+  const addFantasy = async () => {
+    if (!fantasyText.trim() || !user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    await addDoc(collection(db, 'artifacts', appId, 'chats', chatId, 'fantasies'), {
+      text: fantasyText.trim(),
+      author: user.uid,
+      drawn: false,
+      createdAt: Date.now()
+    });
+    setFantasyText('');
+    notify("Fantasme glissé dans la boîte 🤫", "✨");
+  };
+
+  // 4. Logique : Piocher le fantasme de l'autre
+  const drawFantasy = async () => {
+    const undrawn = fantasies.filter(f => !f.drawn && f.author !== user.uid);
+    if (undrawn.length === 0) {
+      notify("La boîte de votre partenaire est vide !", "📭");
+      return;
+    }
+    const randomF = undrawn[Math.floor(Math.random() * undrawn.length)];
+    setDrawnFantasy(randomF.text);
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    // On marque le fantasme comme lu pour ne pas retomber dessus
+    await updateDoc(doc(db, 'artifacts', appId, 'chats', chatId, 'fantasies', randomF.id), { drawn: true });
+  };
+
+
 // --- DONNÉES : CONSEILS ET ARTICLES ---
 const TIPS_DATA = [
   {
@@ -371,6 +421,16 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    const unsub = onSnapshot(collection(db, 'artifacts', appId, 'chats', chatId, 'fantasies'), (snap) => {
+      setFantasies(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [user, userData?.partnerUid]);
+
+  
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -1207,6 +1267,32 @@ export default function App() {
                      </div>
                      <ChevronRight className="text-slate-600" />
                    </div>
+
+{/* LA JAUGE DE TENSION INVISIBLE */}
+<div className={`border rounded-[2rem] p-6 text-center transition-all duration-1000 mt-6 ${combinedTension > 80 ? 'bg-rose-950/80 border-rose-500 shadow-[0_0_40px_rgba(244,63,94,0.4)]' : 'bg-slate-900 border-slate-800'}`}>
+  <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest flex items-center justify-center gap-2">
+    <Flame size={18} className={combinedTension > 80 ? "text-rose-500 animate-pulse" : "text-amber-500"}/> 
+    Tension Cumulée
+  </h3>
+  
+  {combinedTension > 80 && (
+    <div className="bg-rose-600 text-white font-black text-[10px] px-3 py-1 rounded-full uppercase mb-4 inline-block animate-bounce shadow-lg shadow-rose-900/50">
+      🔥 Alerte Canicule : Rentrez chez vous 🔥
+    </div>
+  )}
+  
+  <p className="text-xs text-slate-400 mb-4 px-4">Ajustez votre envie. Votre partenaire ne verra que la moyenne de vos deux jauges.</p>
+  
+  <div className="relative pt-1">
+    <input 
+      type="range" min="0" max="100" 
+      value={myTension} 
+      onChange={(e) => updateTension(parseInt(e.target.value))}
+      className="w-full h-3 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-rose-500"
+    />
+  </div>
+</div>
+
 
                    {/* HUMEUR DU JOUR AVEC PROFIL CLICABLE */}
                    <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6">
