@@ -100,12 +100,6 @@ const GAMES_DATA = {
   ]
 };
 
-  // --- NOUVEAUX ÉTATS : TENSION & FANTASMES ---
-  const [myTension, setMyTension] = useState(50);
-  const [fantasyText, setFantasyText] = useState('');
-  const [fantasies, setFantasies] = useState([]);
-  const [drawnFantasy, setDrawnFantasy] = useState(null);
-
   // 1. Logique : Mettre à jour sa propre jauge
   const updateTension = async (value) => {
     setMyTension(value);
@@ -420,15 +414,6 @@ export default function App() {
       setNotificationsEnabled(Notification.permission === 'granted');
     }
   }, []);
-
-  useEffect(() => {
-    if (!user || !userData?.partnerUid) return;
-    const chatId = [user.uid, userData.partnerUid].sort().join('_');
-    const unsub = onSnapshot(collection(db, 'artifacts', appId, 'chats', chatId, 'fantasies'), (snap) => {
-      setFantasies(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsub();
-  }, [user, userData?.partnerUid]);
 
   
   useEffect(() => {
