@@ -15,7 +15,8 @@ import {
   MessageCircle, Filter, Music, CheckCircle2, 
   Shuffle, RefreshCw, Edit2, Timer, Gift, Zap, 
   Trash2, Edit3, FolderPlus, BellRing, HeartHandshake,
-  CalendarHeart, Send, LogIn, MessageSquare, Smartphone
+  CalendarHeart, Send, LogIn, MessageSquare, Smartphone,
+  AlertTriangle // <-- Ajouté pour le modal Admin
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ULTRA-SÉCURISÉE (ANTI-CRASH) ---
@@ -334,10 +335,12 @@ export default function App() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const chatEndRef = useRef(null);
   
-  // REFS POUR LES NOTIFICATIONS SYSTÈMES SANS RECHARGEMENT
+  // REFS POUR LES NOTIFICATIONS SYSTÈMES ET APP ADMIN
   const lastSeenPingRef = useRef(Date.now());
   const prevPartnerLikesRef = useRef([]);
   const myLikesRef = useRef([]);
+  const lastAdminCommandRef = useRef(0); // <-- NOUVEAU REF ADMIN
+  const [adminPopupMessage, setAdminPopupMessage] = useState(null); // <-- STATE ADMIN POPUP
 
   // --- SYSTÈME DE NOTIFICATION NATIVE (OS) ---
   const fireSystemNotification = (title, body) => {
@@ -375,6 +378,38 @@ export default function App() {
     });
     return () => unsub();
   }, []);
+
+  // --- ÉCOUTE DES COMMANDES ADMIN ---
+  useEffect(() => {
+    if (!user) return;
+    
+    const commandRef = doc(db, 'artifacts', appId, 'admin', 'commands');
+    const unsubAdmin = onSnapshot(commandRef, (snap) => {
+      if (snap.exists()) {
+        const cmd = snap.data();
+        
+        // On ignore les commandes plus vieilles que le lancement de l'app ou déjà traitées
+        if (cmd.timestamp <= lastAdminCommandRef.current) return;
+        lastAdminCommandRef.current = cmd.timestamp;
+
+        // Traitement des différentes commandes du Game Master
+        if (cmd.type === 'POPUP_MESSAGE') {
+          setAdminPopupMessage(cmd.text);
+        } 
+        else if (cmd.type === 'FORCE_NAV') {
+          setActiveTab(cmd.tab);
+          setActiveGame(null); // Reset le jeu si on force la navigation
+          notify("Le Maître du Jeu a changé votre page !", "⚡");
+        } 
+        else if (cmd.type === 'SYSTEM_NOTIF') {
+          fireSystemNotification(cmd.title, cmd.body);
+          notify(cmd.title, "🔔");
+        }
+      }
+    });
+
+    return () => unsubAdmin();
+  }, [user]);
 
   // --- LOGIQUE PRINCIPALE DONNÉES ---
   useEffect(() => {
@@ -1309,6 +1344,25 @@ export default function App() {
       </nav>
 
       {/* --- MODALS --- */}
+
+      {/* MODAL ADMIN POPUP (Le Message du Game Master) */}
+      {adminPopupMessage && (
+        <div className="fixed inset-0 z-[300] bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-in zoom-in duration-300">
+          <div className="bg-slate-900 border-2 border-rose-500 rounded-[2rem] p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(244,63,94,0.3)] relative overflow-hidden">
+            <AlertTriangle className="absolute -top-6 -right-6 text-rose-500/10" size={150} />
+            <h2 className="text-2xl font-black text-rose-500 mb-6 uppercase tracking-widest relative z-10">Message System</h2>
+            <p className="text-lg text-white font-bold leading-relaxed mb-8 relative z-10 whitespace-pre-line">
+              {adminPopupMessage}
+            </p>
+            <button 
+              onClick={() => setAdminPopupMessage(null)} 
+              className="w-full bg-rose-600 text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-rose-500 transition relative z-10"
+            >
+              J'ai compris
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* NOUVEAU: MODAL DU CHAT */}
       {isChatOpen && (
