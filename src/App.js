@@ -951,6 +951,97 @@ export default function App() {
                 </div>
               </div>
 
+        {/* --- MODAL : DÉTAILS DE LA POSITION --- */}
+        {selectedPosition && (
+          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
+            <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+              <button onClick={() => { setSelectedPosition(null); setShowDeleteConfirm(false); }} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition">
+                <ArrowLeft size={20}/>
+              </button>
+              <div className="flex gap-2">
+                <button onClick={() => handleLike(selectedPosition.id)} className="bg-slate-900 p-2 rounded-full transition">
+                  {userData?.likes?.includes(selectedPosition.id) ? <Heart size={20} fill="#f43f5e" className="text-rose-500" /> : <Heart size={20} className="text-slate-400" />}
+                </button>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-6 custom-scroll pb-32">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-700">
+                  {selectedPosition.cat}
+                </span>
+                {selectedPosition.isMine && (
+                  <span className="bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-500/30">
+                    Ma création
+                  </span>
+                )}
+                {selectedPosition.isPartner && (
+                  <span className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/30">
+                    De {partnerData?.pseudo || 'Partenaire'}
+                  </span>
+                )}
+              </div>
+
+              <h2 className="text-3xl font-black text-white mb-6 leading-tight">
+                {discreetMode ? "Position Masquée" : selectedPosition.name}
+              </h2>
+
+              <div className="flex gap-4 mb-8">
+                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Piment</div>
+                  <div className="flex justify-center gap-1">
+                    {[...Array(5)].map((_, i) => <Flame key={i} size={16} className={i < selectedPosition.spice ? 'text-rose-500' : 'text-slate-700'} fill={i < selectedPosition.spice ? 'currentColor' : 'none'} />)}
+                  </div>
+                </div>
+                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Physique</div>
+                  <div className="flex justify-center gap-1">
+                    {[...Array(5)].map((_, i) => <Activity key={i} size={16} className={i < selectedPosition.diff ? 'text-amber-500' : 'text-slate-700'} />)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-6">
+                <h3 className="text-sm font-black text-white mb-3 uppercase tracking-widest flex items-center gap-2">
+                  <BookOpen size={16} className="text-indigo-400"/> Description
+                </h3>
+                <p className={`text-slate-300 leading-relaxed text-sm ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>
+                  {applyDiscreet(selectedPosition.desc)}
+                </p>
+              </div>
+
+              {selectedPosition.v && (
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-6">
+                  <h3 className="text-sm font-black text-white mb-3 uppercase tracking-widest flex items-center gap-2">
+                    <Sparkles size={16} className="text-amber-400"/> Variante
+                  </h3>
+                  <p className={`text-slate-400 italic leading-relaxed text-sm ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>
+                    {applyDiscreet(selectedPosition.v)}
+                  </p>
+                </div>
+              )}
+
+              {selectedPosition.isMine && (
+                <div className="flex gap-3 mt-8">
+                  <button onClick={() => handleOpenEdit(selectedPosition)} className="flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition">
+                    <Edit2 size={16}/> Modifier
+                  </button>
+                  {showDeleteConfirm ? (
+                    <button onClick={handleDeletePosition} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-500 transition animate-in zoom-in">
+                      Confirmer ?
+                    </button>
+                  ) : (
+                    <button onClick={() => setShowDeleteConfirm(true)} className="bg-slate-800 text-rose-500 p-4 rounded-xl hover:bg-rose-900/30 transition">
+                      <Trash2 size={20}/>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+
               {/* RÉSULTATS */}
               {displayCategories.map(category => {
                 if (filterCat !== 'Toutes' && category.id !== filterCat) return null;
