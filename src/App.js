@@ -18,7 +18,7 @@ import {
   Trash2, Edit3, FolderPlus, BellRing, HeartHandshake,
   CalendarHeart, Send, LogIn, MessageSquare, Smartphone,
   AlertTriangle, Lightbulb, Camera, Upload, Clock, X, 
-  Image as ImageIcon, Key, Unlock 
+  Image as ImageIcon, Key, Unlock, ImagePlus, Check
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ULTRA-SÉCURISÉE (ANTI-CRASH) ---
@@ -45,7 +45,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'kamasync-ultra-v4';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'kamasync-ultra-v5';
 
 // --- CATÉGORIES DE BASE ---
 const CATEGORIES = [
@@ -65,6 +65,20 @@ const MOODS = [
   { id: 'playful', label: 'Humeur Joueuse', icon: '🎲', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
   { id: 'wild', label: 'Très Sauvage', icon: '🔥', color: 'bg-rose-500/20 text-rose-500 border-rose-500/30' },
   { id: 'tired', label: 'Pas ce soir', icon: '💤', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' }
+];
+
+// --- NOUVEAU : QUESTIONS DU JOUR (RITUEL QUOTIDIEN) ---
+const DAILY_QUESTIONS = [
+  "Quel est le souvenir intime le plus marquant que tu as avec moi ?",
+  "Si on devait le faire dans un endroit insolite aujourd'hui, ce serait où ?",
+  "Quelle tenue aimerais-tu me voir porter ce soir ?",
+  "Quelle est la partie de mon corps que tu préfères caresser ?",
+  "Raconte-moi un rêve érotique que tu as fait (avec ou sans moi).",
+  "Quel est le préliminaire qui te fait craquer à tous les coups ?",
+  "Y a-t-il une position du catalogue que tu meurs d'envie d'essayer ?",
+  "Quelle est la chose la plus excitante que je t'ai dite pendant l'amour ?",
+  "Si tu devais me donner un ordre au lit ce soir, quel serait-il ?",
+  "Qu'est-ce qui te donne le plus envie de moi en pleine journée ?"
 ];
 
 const GAMES_DATA = {
@@ -332,10 +346,13 @@ export default function App() {
   const [activeGame, setActiveGame] = useState(null);
   const [gameResult, setGameResult] = useState(null);
   
+  // --- ÉTATS CHAT ---
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showPartnerProfile, setShowPartnerProfile] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [editingMsgId, setEditingMsgId] = useState(null);
+  const [editMsgText, setEditMsgText] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const chatEndRef = useRef(null);
   
@@ -349,9 +366,16 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState("");
 
   const [vaultData, setVaultData] = useState(null);
+  const [vaultType, setVaultType] = useState('text'); // 'text' ou 'photo'
+  const [vaultCondition, setVaultCondition] = useState('');
   const [vaultSecret, setVaultSecret] = useState('');
+  const [vaultRewardPhoto, setVaultRewardPhoto] = useState(null);
+  const [vaultRewardPreview, setVaultRewardPreview] = useState(null);
   const [vaultKeysReq, setVaultKeysReq] = useState(3);
   
+  const [dailyQData, setDailyQData] = useState(null);
+  const [myDailyAnswer, setMyDailyAnswer] = useState('');
+
   const lastSeenPingRef = useRef(Date.now());
   const prevPartnerLikesRef = useRef([]);
   const myLikesRef = useRef([]);
@@ -476,7 +500,7 @@ export default function App() {
                newlyLiked.forEach(likedId => {
                  if (myLikesRef.current.includes(likedId)) {
                     notify("NOUVEAU MATCH PARFAIT !", "🔥");
-                    fireSystemNotification("Nouveau Match ! 🔥", `${pData.pseudo || 'Votre partenaire'} a aimé la même position que vous !`);
+                    fireSystemNotification("Match ! 🔥", `${pData.pseudo || 'Votre partenaire'} a la même envie !`);
                  }
                });
                prevPartnerLikesRef.current = pLikes;
@@ -519,7 +543,7 @@ export default function App() {
     return () => { unsubUser(); unsubPartner(); unsubPartnerCustom(); unsubGlobalChat(); };
   }, [user]);
 
-  // --- ÉCOUTE DES JEUX EN TEMPS RÉEL (Photo Mystère + Coffre-Fort) ---
+  // --- ÉCOUTE DES JEUX EN TEMPS RÉEL (Mystère, Coffre, Question) ---
   useEffect(() => {
     if (!user || !userData?.partnerUid) return;
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
@@ -530,15 +554,16 @@ export default function App() {
         const data = snap.data();
         setBlurGameData(data.blurGame || null);
         setVaultData(data.vault || null);
+        setDailyQData(data.dailyQ || null);
       } else {
         setBlurGameData(null);
         setVaultData(null);
+        setDailyQData(null);
       }
     });
     return () => unsub();
   }, [user, userData?.partnerUid]);
 
-  // Calcul dé-floutage
   useEffect(() => {
     if (!blurGameData || blurGameData.senderId === user?.uid) return;
     const interval = setInterval(() => {
@@ -589,13 +614,45 @@ export default function App() {
 
   // --- ACTIONS DU COFFRE-FORT ---
   const handleCreateVault = async () => {
-    if (!vaultSecret.trim() || !user || !userData?.partnerUid) return;
-    const chatId = [user.uid, userData.partnerUid].sort().join('_');
-    await setDoc(doc(db, 'artifacts', appId, 'games', chatId), {
-      vault: { creatorId: user.uid, secret: vaultSecret.trim(), keysRequired: vaultKeysReq, keysObtained: 0, createdAt: Date.now() }
-    }, { merge: true });
-    setVaultSecret(''); notify("Coffre-fort verrouillé !", "🔒");
-    updateDoc(doc(db, 'artifacts', appId, 'users', userData.partnerUid), { pingToPartner: Date.now() }); 
+    if (!vaultCondition.trim() || !user || !userData?.partnerUid) return;
+    if (vaultType === 'text' && !vaultSecret.trim()) return;
+    if (vaultType === 'photo' && !vaultRewardPhoto) return;
+
+    setUploadingBlur(true);
+    let url = null;
+    let path = null;
+
+    try {
+      if (vaultType === 'photo') {
+        const chatId = [user.uid, userData.partnerUid].sort().join('_');
+        path = `vaultPhotos/${chatId}_${Date.now()}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, vaultRewardPhoto);
+        url = await getDownloadURL(storageRef);
+      }
+
+      const chatId = [user.uid, userData.partnerUid].sort().join('_');
+      await setDoc(doc(db, 'artifacts', appId, 'games', chatId), {
+        vault: { 
+          creatorId: user.uid, 
+          type: vaultType,
+          condition: vaultCondition.trim(),
+          secret: vaultType === 'text' ? vaultSecret.trim() : null, 
+          imageUrl: url,
+          imagePath: path,
+          keysRequired: vaultKeysReq, 
+          keysObtained: 0, 
+          createdAt: Date.now() 
+        }
+      }, { merge: true });
+      
+      setVaultSecret(''); setVaultCondition(''); setVaultRewardPhoto(null); setVaultRewardPreview(null);
+      notify("Coffre-fort verrouillé !", "🔒");
+      updateDoc(doc(db, 'artifacts', appId, 'users', userData.partnerUid), { pingToPartner: Date.now() }); 
+    } catch (e) {
+      notify("Erreur lors du verrouillage.", "❌");
+    }
+    setUploadingBlur(false);
   };
 
   const handleGiveKey = async () => {
@@ -610,8 +667,34 @@ export default function App() {
   const handleDeleteVault = async () => {
     if (!user || !userData?.partnerUid) return;
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    if (vaultData?.imagePath) await deleteObject(ref(storage, vaultData.imagePath)).catch(e=>console.log(e));
     await setDoc(doc(db, 'artifacts', appId, 'games', chatId), { vault: null }, { merge: true });
     notify("Coffre supprimé", "🗑️");
+  };
+
+  // --- ACTIONS QUESTION DU JOUR ---
+  const todayStr = new Date().toISOString().split('T')[0];
+  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+  const todaysQuestion = DAILY_QUESTIONS[dayOfYear % DAILY_QUESTIONS.length];
+
+  const handleAnswerDailyQ = async () => {
+    if (!myDailyAnswer.trim() || !user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    
+    // Check if dailyQData is from today, if not, reset it
+    let currentQ = dailyQData;
+    if (!currentQ || currentQ.date !== todayStr) {
+      currentQ = { date: todayStr };
+    }
+
+    const isUser1 = user.uid < userData.partnerUid; // Just consistent mapping
+    if (isUser1) currentQ.u1Answer = myDailyAnswer.trim();
+    else currentQ.u2Answer = myDailyAnswer.trim();
+
+    await setDoc(doc(db, 'artifacts', appId, 'games', chatId), { dailyQ: currentQ }, { merge: true });
+    setMyDailyAnswer('');
+    notify("Réponse envoyée !", "💬");
+    updateDoc(doc(db, 'artifacts', appId, 'users', userData.partnerUid), { pingToPartner: Date.now() });
   };
 
   const displayCategories = useMemo(() => {
@@ -640,15 +723,12 @@ export default function App() {
     });
   }, [allPositions, searchQuery, filterSpice, filterPhysique, filterCat, sortBy]);
 
-  const positionDuJour = useMemo(() => {
-    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
-    return FULL_CATALOG[dayOfYear % FULL_CATALOG.length];
-  }, []);
+  const positionDuJour = useMemo(() => FULL_CATALOG[dayOfYear % FULL_CATALOG.length], [dayOfYear]);
 
   const resetFilters = () => { setSearchQuery(''); setFilterSpice(0); setFilterPhysique(0); setFilterCat('Toutes'); setSortBy('az'); };
 
   const notify = (msg, icon = '✨') => {
-    const id = Date.now();
+    const id = Date.now() + Math.random(); // FIXED: Unique IDs to prevent stuck notifications
     setNotifications(prev => [...prev, { id, msg, icon }]);
     setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4000);
   };
@@ -781,6 +861,7 @@ export default function App() {
     } catch (e) { notify("Erreur d'envoi", "❌"); }
   };
 
+  // --- LOGIQUE CHAT ---
   useEffect(() => {
     if (!isChatOpen || !user || !userData?.partnerUid) return;
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
@@ -797,6 +878,20 @@ export default function App() {
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
     const msgText = newMessage.trim(); setNewMessage(''); 
     await addDoc(collection(db, 'artifacts', appId, 'chats', chatId, 'messages'), { text: msgText, uid: user.uid, createdAt: Date.now() });
+  };
+
+  const handleSaveEditMessage = async () => {
+    if (!editingMsgId || !editMsgText.trim() || !user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    await updateDoc(doc(db, 'artifacts', appId, 'chats', chatId, 'messages', editingMsgId), { text: editMsgText.trim(), edited: true });
+    setEditingMsgId(null); setEditMsgText(''); notify("Message modifié", "✏️");
+  };
+
+  const handleDeleteMessage = async (msgId) => {
+    if (!user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    await deleteDoc(doc(db, 'artifacts', appId, 'chats', chatId, 'messages', msgId));
+    notify("Message supprimé", "🗑️");
   };
 
   const applyDiscreet = (text, type = 'desc') => discreetMode ? (type === 'title' ? "Masqué" : text.replace(/[a-zA-Z]/g, "x")) : text;
@@ -836,6 +931,9 @@ export default function App() {
   );
 
   const sharedLikes = allPositions.filter(p => userData?.likes?.includes(p.id) && partnerData?.likes?.includes(p.id));
+  const isUser1 = user?.uid < userData?.partnerUid;
+  const myAnswerToday = isUser1 ? dailyQData?.u1Answer : dailyQData?.u2Answer;
+  const partnerAnswerToday = isUser1 ? dailyQData?.u2Answer : dailyQData?.u1Answer;
 
   return (
     <div className="fixed inset-0 bg-slate-950 sm:bg-black flex items-center justify-center font-sans" style={{ WebkitTapHighlightColor: 'transparent' }}>
@@ -855,8 +953,8 @@ export default function App() {
 
         <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none items-center w-full px-4">
           {notifications.map(n => (
-            <div key={n.id} className="bg-slate-800/90 backdrop-blur-md text-white px-6 py-3 rounded-2xl text-xs font-bold shadow-2xl flex items-center gap-3 border border-white/10">
-              <span className="text-lg">{n.icon}</span> {n.msg}
+            <div key={n.id} onClick={() => setNotifications(prev => prev.filter(notif => notif.id !== n.id))} className="bg-slate-800/95 backdrop-blur-md text-white px-6 py-3 rounded-2xl text-xs font-bold shadow-2xl flex items-center gap-3 border border-white/10 cursor-pointer pointer-events-auto hover:bg-slate-700 transition">
+              <span className="text-lg">{n.icon}</span> {n.msg} <X size={12} className="ml-2 opacity-50" />
             </div>
           ))}
         </div>
@@ -940,6 +1038,22 @@ export default function App() {
                  <p className="text-slate-400 text-sm">Choisissez votre expérience pour ce soir.</p>
                </div>
                <div className="grid grid-cols-1 gap-4">
+                 
+                 {/* NOUVEAU: QUESTION DU JOUR */}
+                 <button onClick={() => setActiveGame('dailyQ')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition relative overflow-hidden shadow-[0_0_15px_rgba(236,72,153,0.15)] border-pink-500/30">
+                   <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/10 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none" />
+                   <div className="relative z-10">
+                    <h3 className="font-bold text-pink-500 flex items-center gap-2 mb-1"><MessageCircle size={18} /> La Question du Jour</h3>
+                    <p className="text-xs text-slate-300">Révélez votre réponse pour voir la sienne.</p>
+                   </div>
+                   <ChevronRight className="text-slate-700 group-hover:text-pink-500 relative z-10" />
+                 </button>
+
+                 <button onClick={() => setActiveGame('vault')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition shadow-[0_0_15px_rgba(245,158,11,0.1)] border-amber-500/30">
+                   <div><h3 className="font-bold text-amber-500 flex items-center gap-2 mb-1"><Lock size={18} /> Le Coffre-Fort</h3><p className="text-xs text-slate-400">Verrouillez un fantasme ou une photo.</p></div>
+                   <ChevronRight className="text-slate-700 group-hover:text-amber-500" />
+                 </button>
+
                  <button onClick={() => setActiveGame('truthOrDare')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
                    <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Zap size={18} className="text-rose-500"/> Action ou Vérité</h3><p className="text-xs text-slate-400">Des confessions intimes et des défis charnels.</p></div>
                    <ChevronRight className="text-slate-700 group-hover:text-white" />
@@ -947,10 +1061,6 @@ export default function App() {
                  <button onClick={() => setActiveGame('loveDice')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
                    <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Dices size={18} className="text-amber-500"/> Dés de l'Amour</h3><p className="text-xs text-slate-400">Laissez le hasard dicter vos caresses.</p></div>
                    <ChevronRight className="text-slate-700 group-hover:text-white" />
-                 </button>
-                 <button onClick={() => setActiveGame('vault')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition shadow-[0_0_15px_rgba(245,158,11,0.1)] border-amber-500/30">
-                   <div><h3 className="font-bold text-amber-500 flex items-center gap-2 mb-1"><Lock size={18} /> Le Coffre-Fort</h3><p className="text-xs text-slate-400">Verrouillez un fantasme ou une récompense.</p></div>
-                   <ChevronRight className="text-slate-700 group-hover:text-amber-500" />
                  </button>
                  <button onClick={() => setActiveGame('scenario')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
                    <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Shuffle size={18} className="text-purple-500"/> Scénario Aléatoire</h3><p className="text-xs text-slate-400">Lieu + Rôle + Twist inattendu.</p></div>
@@ -1181,21 +1291,11 @@ export default function App() {
                   <p className={`text-slate-400 italic leading-relaxed text-sm ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>{applyDiscreet(selectedPosition.v)}</p>
                 </div>
               )}
-              {selectedPosition.isMine && (
-                <div className="flex gap-3 mt-8">
-                  <button onClick={() => handleOpenEdit(selectedPosition)} className="flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition"><Edit2 size={16}/> Modifier</button>
-                  {showDeleteConfirm ? (
-                    <button onClick={handleDeletePosition} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-500 transition animate-in zoom-in">Confirmer ?</button>
-                  ) : (
-                    <button onClick={() => setShowDeleteConfirm(true)} className="bg-slate-800 text-rose-500 p-4 rounded-xl hover:bg-rose-900/30 transition"><Trash2 size={20}/></button>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         )}
 
-        {/* MODAL : ARTICLE DU GUIDE (TIPS) - RÉPARÉ ICI */}
+        {/* MODAL : ARTICLE DU GUIDE (TIPS) */}
         {selectedTip && (
           <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
             <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
@@ -1216,7 +1316,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL JEUX (Tous les jeux y compris BlurPhoto et Coffre-Fort) */}
+        {/* MODAL JEUX (Tous les jeux y compris DailyQ, Vault, etc.) */}
         {activeTab === 'jeux' && activeGame && (
           <div className="absolute inset-0 bg-slate-950 z-[150] animate-in slide-in-from-right duration-300 flex flex-col">
             <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
@@ -1226,6 +1326,48 @@ export default function App() {
             
             <div className="flex-1 overflow-y-auto p-6 pb-32 flex flex-col items-center justify-start pt-8 text-center custom-scroll">
               
+              {/* NOUVEAU: QUESTION DU JOUR */}
+              {activeGame === 'dailyQ' && (
+                <div className="w-full max-w-md">
+                  <MessageCircle size={64} className="text-pink-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-black text-white mb-6">Question du Jour</h2>
+                  {!userData?.partnerUid ? (
+                    <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center"><p className="text-slate-400">Vous devez être en Duo pour jouer à la question du jour.</p></div>
+                  ) : (
+                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] text-center flex flex-col">
+                      <p className="text-xl font-bold text-white mb-6 leading-relaxed">"{todaysQuestion}"</p>
+                      
+                      {!myAnswerToday ? (
+                        <div className="animate-in fade-in">
+                          <textarea value={myDailyAnswer} onChange={(e) => setMyDailyAnswer(e.target.value)} placeholder="Votre réponse honnête..." className="w-full h-28 bg-slate-950 border border-slate-800 text-white rounded-2xl p-4 outline-none focus:border-pink-500 transition-colors resize-none mb-4" />
+                          <button onClick={handleAnswerDailyQ} disabled={!myDailyAnswer.trim()} className="w-full bg-pink-600 hover:bg-pink-500 disabled:bg-slate-800 disabled:text-slate-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-pink-900/20">Envoyer ma réponse</button>
+                        </div>
+                      ) : !partnerAnswerToday ? (
+                        <div className="bg-slate-950 border border-slate-800 p-6 rounded-2xl animate-in zoom-in">
+                          <Check size={32} className="text-pink-500 mx-auto mb-2" />
+                          <h3 className="text-white font-bold mb-2">Réponse enregistrée</h3>
+                          <p className="text-slate-400 text-sm">Il ne reste plus qu'à attendre que {partnerData?.pseudo} réponde pour voir vos deux réponses !</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 animate-in fade-in">
+                          <div className="bg-slate-950 border border-pink-500/20 p-4 rounded-2xl text-left relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-pink-500"></div>
+                            <h4 className="text-xs font-black text-pink-500 uppercase mb-2">Ma réponse</h4>
+                            <p className="text-white text-sm">{myAnswerToday}</p>
+                          </div>
+                          <div className="bg-slate-950 border border-indigo-500/20 p-4 rounded-2xl text-left relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                            <h4 className="text-xs font-black text-indigo-400 uppercase mb-2">La réponse de {partnerData?.pseudo}</h4>
+                            <p className="text-white text-sm">{partnerAnswerToday}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* COFFRE-FORT AMÉLIORÉ (Texte / Photo / Conditions) */}
               {activeGame === 'vault' && (
                 <div className="w-full max-w-md">
                   {vaultData?.keysObtained >= vaultData?.keysRequired ? <Unlock size={64} className="text-amber-500 mx-auto mb-6 animate-in zoom-in" /> : <Lock size={64} className="text-amber-500 mx-auto mb-6" />}
@@ -1234,23 +1376,56 @@ export default function App() {
                     <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center"><p className="text-slate-400">Vous devez être en Duo pour jouer au Coffre-Fort.</p></div>
                   ) : !vaultData ? (
                     <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center animate-in fade-in">
-                      <p className="text-slate-400 text-sm mb-6">Cachez un fantasme, un cadeau ou une idée coquine. Votre partenaire devra mériter ses clés pour le découvrir.</p>
-                      <textarea value={vaultSecret} onChange={(e) => setVaultSecret(e.target.value)} placeholder="Ex: Si tu ouvres ce coffre, ce soir je mets cette tenue que tu adores..." className="w-full h-28 bg-slate-950 border border-slate-800 text-white rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors resize-none mb-4" />
-                      <div className="flex items-center justify-between bg-slate-950 rounded-2xl p-4 mb-6 border border-slate-800">
+                      
+                      <div className="flex bg-slate-950 rounded-xl p-1 mb-6 border border-slate-800">
+                        <button onClick={() => setVaultType('text')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition ${vaultType === 'text' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}>Texte Secret</button>
+                        <button onClick={() => setVaultType('photo')} className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition ${vaultType === 'photo' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}>Photo Secrète</button>
+                      </div>
+
+                      <div className="text-left mb-4">
+                        <label className="text-[10px] font-black text-amber-500 uppercase block mb-2">Condition (Que doit faire votre partenaire ?)</label>
+                        <input type="text" value={vaultCondition} onChange={(e) => setVaultCondition(e.target.value)} placeholder="Ex: Me faire un massage de 20 min" className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-3 outline-none focus:border-amber-500" />
+                      </div>
+
+                      {vaultType === 'text' ? (
+                        <div className="text-left mb-4">
+                          <label className="text-[10px] font-black text-amber-500 uppercase block mb-2">Récompense (Le secret)</label>
+                          <textarea value={vaultSecret} onChange={(e) => setVaultSecret(e.target.value)} placeholder="Ex: Ce soir je mets cette tenue que tu adores..." className="w-full h-24 bg-slate-950 border border-slate-800 text-white rounded-xl p-4 outline-none focus:border-amber-500 resize-none" />
+                        </div>
+                      ) : (
+                        <div className="text-left mb-4">
+                          <label className="text-[10px] font-black text-amber-500 uppercase block mb-2">Photo Récompense</label>
+                          <input type="file" accept="image/*" id="vault-photo" className="hidden" onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) { setVaultRewardPhoto(file); const reader = new FileReader(); reader.onloadend = () => setVaultRewardPreview(reader.result); reader.readAsDataURL(file); }
+                          }} />
+                          {vaultRewardPreview ? (
+                            <div className="relative w-full h-32 rounded-xl overflow-hidden border border-slate-700 mb-2"><img src={vaultRewardPreview} alt="Reward" className="w-full h-full object-cover" /><button onClick={() => {setVaultRewardPhoto(null); setVaultRewardPreview(null);}} className="absolute top-2 right-2 bg-slate-900 p-1 rounded-full text-rose-500"><X size={14}/></button></div>
+                          ) : (
+                            <label htmlFor="vault-photo" className="cursor-pointer bg-slate-950 border border-dashed border-slate-700 w-full py-6 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-white transition mb-2"><ImagePlus size={20} /> Ajouter une photo</label>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between bg-slate-950 rounded-xl p-4 mb-6 border border-slate-800">
                         <span className="text-sm font-bold text-slate-300 flex items-center gap-2"><Key size={16} className="text-amber-500"/> Clés requises</span>
                         <select value={vaultKeysReq} onChange={(e) => setVaultKeysReq(Number(e.target.value))} className="bg-slate-800 text-white outline-none rounded-lg px-3 py-1 font-bold">
                           {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
                         </select>
                       </div>
-                      <button onClick={handleCreateVault} disabled={!vaultSecret.trim()} className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-amber-900/20">Verrouiller le Secret</button>
+                      <button onClick={handleCreateVault} disabled={!vaultCondition.trim() || uploadingBlur || (vaultType === 'text' && !vaultSecret.trim()) || (vaultType === 'photo' && !vaultRewardPhoto)} className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-amber-900/20">{uploadingBlur ? "Verrouillage..." : "Verrouiller le Secret"}</button>
                     </div>
                   ) : vaultData.creatorId === user.uid ? (
                     <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] text-center">
                       <span className="bg-amber-500/20 text-amber-400 text-[10px] font-black uppercase px-3 py-1 rounded-full border border-amber-500/30 mb-4 inline-block">Votre Coffre</span>
                       <h3 className="text-xl font-bold text-white mb-2">Vous avez verrouillé un secret</h3>
-                      <div className="my-8 flex justify-center gap-2">{[...Array(vaultData.keysRequired)].map((_, i) => <Key key={i} size={32} className={i < vaultData.keysObtained ? "text-amber-500" : "text-slate-700"} />)}</div>
+                      <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 my-4">
+                        <span className="text-[10px] font-black text-slate-500 uppercase block mb-1">Condition demandée :</span>
+                        <span className="text-sm text-white font-bold">{vaultData.condition}</span>
+                      </div>
+                      <div className="my-6 flex justify-center gap-2">{[...Array(vaultData.keysRequired)].map((_, i) => <Key key={i} size={32} className={i < vaultData.keysObtained ? "text-amber-500" : "text-slate-700"} />)}</div>
                       <p className="text-slate-400 text-sm mb-6">Votre partenaire a <strong className="text-white">{vaultData.keysObtained} / {vaultData.keysRequired}</strong> clés.</p>
-                      {vaultData.keysObtained < vaultData.keysRequired ? <button onClick={handleGiveKey} className="w-full bg-amber-500 text-slate-900 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-amber-400 mb-4">Offrir une Clé 🔑</button> : <p className="text-emerald-400 font-bold mb-4 bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">Le coffre a été ouvert !</p>}
+                      {vaultData.keysObtained < vaultData.keysRequired ? <button onClick={handleGiveKey} className="w-full bg-amber-500 text-slate-900 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-amber-400 mb-4">Valider & Offrir une Clé 🔑</button> : <p className="text-emerald-400 font-bold mb-4 bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">Le coffre a été ouvert !</p>}
                       <button onClick={handleDeleteVault} className="text-slate-500 text-xs font-bold uppercase tracking-widest hover:text-rose-500 transition">Supprimer ce coffre</button>
                     </div>
                   ) : (
@@ -1259,13 +1434,23 @@ export default function App() {
                       {vaultData.keysObtained < vaultData.keysRequired ? (
                         <>
                           <h3 className="text-xl font-bold text-white mb-4">Un secret est verrouillé ici...</h3>
-                          <div className="my-8 flex justify-center gap-2">{[...Array(vaultData.keysRequired)].map((_, i) => <Key key={i} size={32} className={i < vaultData.keysObtained ? "text-amber-500" : "text-slate-700"} />)}</div>
-                          <p className="text-slate-400 text-sm">Il vous manque <strong className="text-amber-500">{vaultData.keysRequired - vaultData.keysObtained} clé(s)</strong>. À vous de négocier ou relever des défis pour les obtenir !</p>
+                          <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 my-4">
+                            <span className="text-[10px] font-black text-amber-500 uppercase block mb-1">Condition pour obtenir une clé :</span>
+                            <span className="text-sm text-white font-bold">{vaultData.condition}</span>
+                          </div>
+                          <div className="my-6 flex justify-center gap-2">{[...Array(vaultData.keysRequired)].map((_, i) => <Key key={i} size={32} className={i < vaultData.keysObtained ? "text-amber-500" : "text-slate-700"} />)}</div>
+                          <p className="text-slate-400 text-sm">Il vous manque <strong className="text-amber-500">{vaultData.keysRequired - vaultData.keysObtained} clé(s)</strong>.</p>
                         </>
                       ) : (
                         <div className="animate-in fade-in zoom-in duration-500">
                           <h3 className="text-xl font-bold text-amber-500 mb-6 uppercase tracking-widest text-[12px]">Secret Déverrouillé !</h3>
-                          <div className="bg-slate-950 p-6 rounded-2xl border border-amber-500/30"><p className="text-white font-bold leading-relaxed text-lg whitespace-pre-line">{vaultData.secret}</p></div>
+                          {vaultData.type === 'photo' && vaultData.imageUrl ? (
+                            <div className="w-full rounded-2xl overflow-hidden border-2 border-amber-500/50 relative">
+                               <img src={vaultData.imageUrl} alt="Reward" className="w-full h-auto" />
+                            </div>
+                          ) : (
+                            <div className="bg-slate-950 p-6 rounded-2xl border border-amber-500/30"><p className="text-white font-bold leading-relaxed text-lg whitespace-pre-line">{vaultData.secret}</p></div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1273,6 +1458,7 @@ export default function App() {
                 </div>
               )}
 
+              {/* AUTRES JEUX (Truth, Dice, Photo, etc.) */}
               {activeGame === 'blurPhoto' && (
                 <div className="w-full max-w-md">
                   <Camera size={64} className="text-cyan-500 mx-auto mb-6" />
@@ -1430,11 +1616,11 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL CHAT PRIVÉ */}
+        {/* MODAL CHAT PRIVÉ (AMÉLIORÉ AVEC MODIF/SUPPRESSION) */}
         {isChatOpen && (
           <div className="absolute inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-right duration-300">
             <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/80 backdrop-blur-xl" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-              <button onClick={() => setIsChatOpen(false)} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+              <button onClick={() => {setIsChatOpen(false); setEditingMsgId(null);}} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-700"><img src={partnerData?.avatarUrl} alt="Partner" className="w-full h-full object-cover"/></div>
                 <h2 className="font-black text-white">{partnerData?.pseudo}</h2>
@@ -1448,24 +1634,50 @@ export default function App() {
                 messages.map(m => {
                   const isMe = m.uid === user?.uid;
                   return (
-                    <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] rounded-2xl px-5 py-3 text-sm ${isMe ? 'bg-rose-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none'}`}>
+                    <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-2`}>
+                      <div className={`max-w-[75%] rounded-2xl px-5 py-3 text-sm relative group ${isMe ? 'bg-rose-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none'}`}>
                         {m.text}
+                        {m.edited && <span className="text-[9px] opacity-60 ml-2 italic">modifié</span>}
                       </div>
+                      
+                      {/* Boutons d'édition (Seulement pour mes messages) */}
+                      {isMe && (
+                        <div className="flex gap-3 mt-1 opacity-0 transition-opacity" style={{ opacity: 1, height: 'auto', paddingTop: '4px' }}>
+                          <button onClick={() => {setEditingMsgId(m.id); setEditMsgText(m.text);}} className="text-slate-500 hover:text-white text-xs flex items-center gap-1"><Edit2 size={10}/> Modifier</button>
+                          <button onClick={() => handleDeleteMessage(m.id)} className="text-slate-500 hover:text-rose-500 text-xs flex items-center gap-1"><Trash2 size={10}/> Supprimer</button>
+                        </div>
+                      )}
                     </div>
                   );
                 })
               )}
               <div ref={chatEndRef} />
             </div>
-            <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-900 bg-slate-950" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
-              <div className="flex gap-2 relative">
-                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Message secret..." className="flex-1 bg-slate-900 border border-slate-800 rounded-full pl-5 pr-12 py-3 text-white outline-none focus:border-rose-500 transition" />
-                <button type="submit" disabled={!newMessage.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-rose-600 text-white rounded-full flex items-center justify-center disabled:opacity-50 disabled:bg-slate-700">
-                  <Send size={14} className="-ml-0.5" />
-                </button>
+
+            {/* Zone de saisie modifiée */}
+            {editingMsgId ? (
+              <div className="p-4 border-t border-slate-900 bg-slate-900" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-rose-500 font-bold uppercase tracking-widest"><Edit2 size={10} className="inline mr-1"/> Modification en cours</span>
+                  <button onClick={() => {setEditingMsgId(null); setEditMsgText('');}} className="text-slate-400 text-xs hover:text-white">Annuler</button>
+                </div>
+                <div className="flex gap-2">
+                  <input type="text" value={editMsgText} onChange={(e) => setEditMsgText(e.target.value)} className="flex-1 bg-slate-950 border border-rose-500/50 rounded-full px-5 py-3 text-white outline-none focus:border-rose-500 transition" />
+                  <button onClick={handleSaveEditMessage} disabled={!editMsgText.trim()} className="w-12 h-12 bg-rose-600 text-white rounded-full flex items-center justify-center disabled:opacity-50">
+                    <Check size={18} />
+                  </button>
+                </div>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-900 bg-slate-950" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
+                <div className="flex gap-2 relative">
+                  <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Message secret..." className="flex-1 bg-slate-900 border border-slate-800 rounded-full pl-5 pr-12 py-3 text-white outline-none focus:border-rose-500 transition" />
+                  <button type="submit" disabled={!newMessage.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-rose-600 text-white rounded-full flex items-center justify-center disabled:opacity-50 disabled:bg-slate-700">
+                    <Send size={14} className="-ml-0.5" />
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
 
