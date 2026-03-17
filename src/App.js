@@ -2,9 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-
 import { 
   getFirestore, doc, setDoc, collection, 
   onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc,
@@ -19,23 +17,9 @@ import {
   Shuffle, RefreshCw, Edit2, Timer, Gift, Zap, 
   Trash2, Edit3, FolderPlus, BellRing, HeartHandshake,
   CalendarHeart, Send, LogIn, MessageSquare, Smartphone,
-  AlertTriangle, Lightbulb 
+  AlertTriangle, Lightbulb, Camera, Upload, Clock, X, 
+  Image as ImageIcon, Key, Unlock 
 } from 'lucide-react';
-
-// Ajoute à la liste existante : Camera, Upload, Clock, X, ImageIcon
-import { 
-  /* ... tes icônes actuelles ... */
-  Camera, Upload, Clock, X, Image as ImageIcon
-} from 'lucide-react';
-
-  // --- ÉTATS POUR LE JEU PHOTO MYSTÈRE ---
-  const [blurGameData, setBlurGameData] = useState(null);
-  const [blurFile, setBlurFile] = useState(null);
-  const [blurPreview, setBlurPreview] = useState(null);
-  const [blurDuration, setBlurDuration] = useState(60); // En secondes (défaut: 1 min)
-  const [uploadingBlur, setUploadingBlur] = useState(false);
-  const [currentBlur, setCurrentBlur] = useState(20); // 20px de flou initial
-  const [timeLeft, setTimeLeft] = useState("");
 
 // --- CONFIGURATION FIREBASE ULTRA-SÉCURISÉE (ANTI-CRASH) ---
 let firebaseConfig;
@@ -76,7 +60,6 @@ const CATEGORIES = [
   { id: 'Sensorielles', icon: <Star size={14}/>, color: 'from-indigo-500/20 to-indigo-900/20', text: 'text-indigo-400' }
 ];
 
-// --- HUMEURS INTIMES ---
 const MOODS = [
   { id: 'romantic', label: 'Câlin & Doux', icon: '☁️', color: 'bg-pink-500/20 text-pink-400 border-pink-500/30' },
   { id: 'playful', label: 'Humeur Joueuse', icon: '🎲', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
@@ -84,7 +67,6 @@ const MOODS = [
   { id: 'tired', label: 'Pas ce soir', icon: '💤', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' }
 ];
 
-// --- DONNÉES MASSIVES DES JEUX COQUINS ---
 const GAMES_DATA = {
   truths: [
     "Quel est ton fantasme le plus inavoué ?", "Quelle partie de mon corps préfères-tu ?", "Raconte-moi le rêve le plus érotique que tu aies fait.",
@@ -119,7 +101,6 @@ const GAMES_DATA = {
   ]
 };
 
-// --- DONNÉES : CONSEILS ET ARTICLES ---
 const TIPS_DATA = [
   {
     id: 't1', title: "Le consentement, moteur du désir", cat: "Communication", icon: <Shield/>, time: "2 min",
@@ -183,8 +164,6 @@ const TIPS_DATA = [
   }
 ];
 
-
-// --- DONNÉES : POSITIONS (Base complète) ---
 const POSITIONS_DATA = [
   { n: "Le Missionnaire (L'indémodable)", c: "Face à face", d: 1, s: 1, desc: "Le partenaire A s'allonge sur le dos, les jambes légèrement écartées. Le partenaire B se place au-dessus en appui sur les mains ou les avant-bras. Leurs bassins s'emboîtent parfaitement, favorisant l'intimité et les baisers.", v: "Variante : Le partenaire A referme complètement ses jambes autour de celles du partenaire B pour augmenter les frictions." },
   { n: "Le Missionnaire surélevé", c: "Face à face", d: 2, s: 2, desc: "Position classique du missionnaire, mais les jambes du partenaire allongé reposent sur les épaules de celui qui est au-dessus. Cela ouvre grand le bassin et permet une pénétration bien plus profonde.", v: "Variante : Glissez un gros coussin sous les fesses du partenaire allongé pour basculer le bassin et cibler la paroi antérieure." },
@@ -294,7 +273,7 @@ const POSITIONS_DATA = [
   { n: "L'Angle droit", c: "Angles & Tweaks", d: 2, s: 3, desc: "Le receveur sur le dos replie ses genoux à 90 degrés et pose ses mollets sur les épaules de l'actif, formant un angle droit parfait.", v: "Variante : L'actif masse les mollets de son partenaire pendant l'action." },
   { n: "La Compression", c: "Angles & Tweaks", d: 3, s: 4, desc: "Quelle que soit la position, le receveur contracte fortement ses muscles pelviens et serre ses cuisses pour créer une sensation d'étreinte maximale.", v: "Variante : Rythmez les contractions pelviennes (Kegel) sur les mouvements de va-et-vient." },
   { n: "L'Expansion", c: "Angles & Tweaks", d: 2, s: 2, desc: "L'actif recule presque jusqu'à sortir complètement à chaque mouvement, avant de revenir profondément. Joue sur la frustration et l'anticipation.", v: "Variante : Marquez une pause d'une seconde lorsque vous êtes presque sorti, avant la pénétration." },
-  { n: "La Méditation sexuelle", c: "Sensorielles", d: 1, s: 3, desc: "Une fois emboîtés, les deux partenairesered cessent tout mouvement pendant plusieurs minutes. Fermez les yeux et concentrez-vous uniquement sur les micro-pulsations de vos corps.", v: "Variante : Synchronisez votre respiration : l'un inspire quand l'autre expire." },
+  { n: "La Méditation sexuelle", c: "Sensorielles", d: 1, s: 3, desc: "Une fois emboîtés, les deux partenaires cessent tout mouvement pendant plusieurs minutes. Fermez les yeux et concentrez-vous uniquement sur les micro-pulsations de vos corps.", v: "Variante : Synchronisez votre respiration : l'un inspire quand l'autre expire." },
   { n: "Le Slow-motion", c: "Sensorielles", d: 2, s: 4, desc: "Effectuez l'acte avec une lenteur exagérée, comme au ralenti. Chaque va-et-vient doit prendre plusieurs secondes. Idéal pour faire monter la tension.", v: "Variante : Combinez le ralenti avec un bandeau sur les yeux du receveur." },
   { n: "La Respiration synchronisée", c: "Sensorielles", d: 1, s: 2, desc: "Inspirez et expirez exactement en même temps, ventre contre ventre. Cela crée une puissante résonance énergétique et émotionnelle.", v: "Variante : Accélérez progressivement le rythme de la respiration pour faire monter l'excitation." },
   { n: "Le Contact visuel total", c: "Sensorielles", d: 1, s: 4, desc: "Interdiction formelle de fermer les yeux ou de détourner le regard, de la première caresse jusqu'à l'orgasme. Très intense et vulnérable.", v: "Variante : Ne clignez des yeux que lorsque votre partenaire le fait." },
@@ -330,10 +309,9 @@ export default function App() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showInstallTutorial, setShowInstallTutorial] = useState(false);
-  const [showIdeaModal, setShowIdeaModal] = useState(false); // NOUVEAU
-  const [ideaText, setIdeaText] = useState(''); // NOUVEAU
+  const [showIdeaModal, setShowIdeaModal] = useState(false); 
+  const [ideaText, setIdeaText] = useState(''); 
 
-  // --- NOUVEAU : GESTION DE LA NOTE SECRÈTE PARTENAIRE ---
   const [partnerNote, setPartnerNote] = useState(''); 
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -357,8 +335,22 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showPartnerProfile, setShowPartnerProfile] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const chatEndRef = useRef(null);
+  
+  // --- ÉTATS JEUX ---
+  const [blurGameData, setBlurGameData] = useState(null);
+  const [blurFile, setBlurFile] = useState(null);
+  const [blurPreview, setBlurPreview] = useState(null);
+  const [blurDuration, setBlurDuration] = useState(60); 
+  const [uploadingBlur, setUploadingBlur] = useState(false);
+  const [currentBlur, setCurrentBlur] = useState(20); 
+  const [timeLeft, setTimeLeft] = useState("");
+
+  const [vaultData, setVaultData] = useState(null);
+  const [vaultSecret, setVaultSecret] = useState('');
+  const [vaultKeysReq, setVaultKeysReq] = useState(3);
   
   const lastSeenPingRef = useRef(Date.now());
   const prevPartnerLikesRef = useRef([]);
@@ -408,7 +400,7 @@ export default function App() {
     if (user) {
       updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { 
         lastActive: Date.now() 
-      }).catch(err => console.error("Erreur mise à jour lastActive:", err));
+      }).catch(err => console.error("Erreur lastActive:", err));
     }
   }, [user, activeTab, activeGame, isChatOpen]);
 
@@ -418,28 +410,20 @@ export default function App() {
     const unsubAdmin = onSnapshot(commandRef, (snap) => {
       if (snap.exists()) {
         const cmd = snap.data();
-        
         if (cmd.timestamp <= lastAdminCommandRef.current) return;
-        
         lastAdminCommandRef.current = cmd.timestamp;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('kama_last_cmd', cmd.timestamp.toString());
-        }
+        if (typeof window !== 'undefined') localStorage.setItem('kama_last_cmd', cmd.timestamp.toString());
 
         if (cmd.type === 'POPUP_MESSAGE') {
           setAdminPopupMessage(cmd.text);
-        } 
-        else if (cmd.type === 'FORCE_NAV') {
+        } else if (cmd.type === 'FORCE_NAV') {
           setActiveTab(cmd.tab);
           setActiveGame(null); 
           notify("Le Maître du Jeu a changé votre page !", "⚡");
-        } 
-        else if (cmd.type === 'SYSTEM_NOTIF') {
+        } else if (cmd.type === 'SYSTEM_NOTIF') {
           fireSystemNotification(cmd.title, cmd.body);
           notify(cmd.title, "🔔");
-        }
-        // --- NOUVEAU: FORCER L'OUVERTURE DE L'ÉDITION DU PROFIL ---
-        else if (cmd.type === 'FORCE_PROFILE_EDIT') {
+        } else if (cmd.type === 'FORCE_PROFILE_EDIT') {
           setActiveTab('profil');
           setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' });
           setIsEditingProfile(true);
@@ -448,7 +432,7 @@ export default function App() {
       }
     });
     return () => unsubAdmin();
-  }, [user, userData]); // Ajout de userData aux dépendances pour avoir les dernières infos
+  }, [user, userData]);
 
   useEffect(() => {
     if (!user) return;
@@ -460,17 +444,10 @@ export default function App() {
     const unsubUser = onSnapshot(userRef, (snap) => {
       if (!snap.exists()) {
         const initial = { 
-          uid: user.uid, 
-          pseudo: user.displayName || 'Anonyme', 
-          bio: 'Explorateur de sensations...',
+          uid: user.uid, pseudo: user.displayName || 'Anonyme', bio: 'Explorateur de sensations...',
           avatarUrl: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}&backgroundColor=1e293b`,
-          likes: [], 
-          pairCode: Math.random().toString(36).substring(2, 8).toUpperCase(), 
-          partnerUid: null,
-          mood: 'playful',
-          lastIntimacy: 0,
-          pingToPartner: 0,
-          partnerNote: '' // Initialisation de la note
+          likes: [], pairCode: Math.random().toString(36).substring(2, 8).toUpperCase(), 
+          partnerUid: null, mood: 'playful', lastIntimacy: 0, pingToPartner: 0, partnerNote: ''
         };
         setDoc(userRef, initial);
         setUserData(initial);
@@ -542,39 +519,37 @@ export default function App() {
     return () => { unsubUser(); unsubPartner(); unsubPartnerCustom(); unsubGlobalChat(); };
   }, [user]);
 
-  // Écouter l'état du jeu "Photo Mystère" en temps réel
+  // --- ÉCOUTE DES JEUX EN TEMPS RÉEL (Photo Mystère + Coffre-Fort) ---
   useEffect(() => {
     if (!user || !userData?.partnerUid) return;
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
     const gameRef = doc(db, 'artifacts', appId, 'games', chatId);
     
     const unsub = onSnapshot(gameRef, (snap) => {
-      if (snap.exists() && snap.data().blurGame) {
-        setBlurGameData(snap.data().blurGame);
+      if (snap.exists()) {
+        const data = snap.data();
+        setBlurGameData(data.blurGame || null);
+        setVaultData(data.vault || null);
       } else {
         setBlurGameData(null);
+        setVaultData(null);
       }
     });
     return () => unsub();
   }, [user, userData?.partnerUid]);
 
-  // Calculer le dé-floutage progressif pour le receveur
+  // Calcul dé-floutage
   useEffect(() => {
     if (!blurGameData || blurGameData.senderId === user?.uid) return;
-
     const interval = setInterval(() => {
       const now = Date.now();
       const elapsed = now - blurGameData.startTime;
       const progress = Math.min(1, Math.max(0, elapsed / blurGameData.durationMs));
-      
-      // Le flou passe de 20px à 0px en fonction de la progression
-      const maxBlur = 20; 
-      setCurrentBlur(maxBlur - (progress * maxBlur));
+      setCurrentBlur(20 - (progress * 20));
 
       const remaining = Math.max(0, blurGameData.durationMs - elapsed);
-      if (remaining === 0) {
-        setTimeLeft("Photo totalement dévoilée ! 🔥");
-      } else {
+      if (remaining === 0) setTimeLeft("Photo totalement dévoilée ! 🔥");
+      else {
          const m = Math.floor(remaining / 60000);
          const s = Math.floor((remaining % 60000) / 1000);
          setTimeLeft(`${m}m ${s}s restants`);
@@ -583,79 +558,68 @@ export default function App() {
     return () => clearInterval(interval);
   }, [blurGameData, user]);
 
-  // Fonction pour envoyer la photo
   const handleUploadBlurPhoto = async () => {
     if (!blurFile || !user || !userData?.partnerUid) return;
     setUploadingBlur(true);
-    
     try {
       const chatId = [user.uid, userData.partnerUid].sort().join('_');
       const fileName = `blurPhotos/${chatId}_${Date.now()}`;
       const storageRef = ref(storage, fileName);
-      
       await uploadBytes(storageRef, blurFile);
       const url = await getDownloadURL(storageRef);
-
       await setDoc(doc(db, 'artifacts', appId, 'games', chatId), {
-        blurGame: {
-          senderId: user.uid,
-          imageUrl: url,
-          imagePath: fileName,
-          startTime: Date.now(),
-          durationMs: blurDuration * 1000, // Conversion en millisecondes
-        }
+        blurGame: { senderId: user.uid, imageUrl: url, imagePath: fileName, startTime: Date.now(), durationMs: blurDuration * 1000 }
       }, { merge: true });
-
-      setBlurFile(null);
-      setBlurPreview(null);
+      setBlurFile(null); setBlurPreview(null);
       notify("Photo mystère envoyée !", "📸");
-      
-      // Notification au partenaire
-      updateDoc(doc(db, 'artifacts', appId, 'users', userData.partnerUid), { 
-        pingToPartner: Date.now() 
-      });
-      
-    } catch (e) {
-      notify("Erreur lors de l'envoi.", "❌");
-    }
+      updateDoc(doc(db, 'artifacts', appId, 'users', userData.partnerUid), { pingToPartner: Date.now() });
+    } catch (e) { notify("Erreur lors de l'envoi.", "❌"); }
     setUploadingBlur(false);
   };
 
-  // Fonction pour annuler/supprimer la photo en cours
   const handleDeleteBlurPhoto = async () => {
     if (!blurGameData || !user || !userData?.partnerUid) return;
     try {
       const chatId = [user.uid, userData.partnerUid].sort().join('_');
-      // On supprime la photo du Storage si elle existe
-      if (blurGameData.imagePath) {
-        await deleteObject(ref(storage, blurGameData.imagePath)).catch(e=>console.log(e));
-      }
-      // On efface les données du jeu
-      await updateDoc(doc(db, 'artifacts', appId, 'games', chatId), {
-        blurGame: deleteDoc() // Nécessite d'importer deleteField() de firebase/firestore si c'est un champ, ou de mettre null
-      });
-      setBlurGameData(null);
-      notify("Photo supprimée.", "🗑️");
-    } catch (e) {
-       // Alternative si deleteField n'est pas importé :
-       await setDoc(doc(db, 'artifacts', appId, 'games', chatId), { blurGame: null }, { merge: true });
-       setBlurGameData(null);
-    }
+      if (blurGameData.imagePath) await deleteObject(ref(storage, blurGameData.imagePath)).catch(e=>console.log(e));
+      await setDoc(doc(db, 'artifacts', appId, 'games', chatId), { blurGame: null }, { merge: true });
+      setBlurGameData(null); notify("Photo supprimée.", "🗑️");
+    } catch (e) { notify("Erreur", "❌"); }
+  };
+
+  // --- ACTIONS DU COFFRE-FORT ---
+  const handleCreateVault = async () => {
+    if (!vaultSecret.trim() || !user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    await setDoc(doc(db, 'artifacts', appId, 'games', chatId), {
+      vault: { creatorId: user.uid, secret: vaultSecret.trim(), keysRequired: vaultKeysReq, keysObtained: 0, createdAt: Date.now() }
+    }, { merge: true });
+    setVaultSecret(''); notify("Coffre-fort verrouillé !", "🔒");
+    updateDoc(doc(db, 'artifacts', appId, 'users', userData.partnerUid), { pingToPartner: Date.now() }); 
+  };
+
+  const handleGiveKey = async () => {
+    if (!vaultData || !user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    const newKeys = vaultData.keysObtained + 1;
+    await setDoc(doc(db, 'artifacts', appId, 'games', chatId), { vault: { ...vaultData, keysObtained: newKeys } }, { merge: true });
+    notify("Clé offerte !", "🔑");
+    if (newKeys >= vaultData.keysRequired) notify("Le coffre est ouvert !", "🔓");
+  };
+
+  const handleDeleteVault = async () => {
+    if (!user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    await setDoc(doc(db, 'artifacts', appId, 'games', chatId), { vault: null }, { merge: true });
+    notify("Coffre supprimé", "🗑️");
   };
 
   const displayCategories = useMemo(() => {
     const baseCats = [...CATEGORIES];
     const baseIds = baseCats.map(c => c.id);
     const customIds = new Set();
-    
-    [...myCustomPositions, ...partnerCustomPositions].forEach(p => {
-       if(p.cat && !baseIds.includes(p.cat)) customIds.add(p.cat);
-    });
-
-    const newCats = Array.from(customIds).map(id => ({
-       id, icon: <FolderPlus size={14}/>, color: 'from-slate-700/40 to-slate-900/40', text: 'text-slate-300'
-    }));
-
+    [...myCustomPositions, ...partnerCustomPositions].forEach(p => { if(p.cat && !baseIds.includes(p.cat)) customIds.add(p.cat); });
+    const newCats = Array.from(customIds).map(id => ({ id, icon: <FolderPlus size={14}/>, color: 'from-slate-700/40 to-slate-900/40', text: 'text-slate-300' }));
     return [...baseCats, ...newCats];
   }, [myCustomPositions, partnerCustomPositions]);
 
@@ -681,9 +645,7 @@ export default function App() {
     return FULL_CATALOG[dayOfYear % FULL_CATALOG.length];
   }, []);
 
-  const resetFilters = () => {
-    setSearchQuery(''); setFilterSpice(0); setFilterPhysique(0); setFilterCat('Toutes'); setSortBy('az');
-  };
+  const resetFilters = () => { setSearchQuery(''); setFilterSpice(0); setFilterPhysique(0); setFilterCat('Toutes'); setSortBy('az'); };
 
   const notify = (msg, icon = '✨') => {
     const id = Date.now();
@@ -706,15 +668,14 @@ export default function App() {
   const logIntimacy = async () => {
     if (!user) return;
     await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { lastIntimacy: Date.now() });
-    notify("Moment intime enregistré dans votre calendrier", "❤️");
+    notify("Moment intime enregistré", "❤️");
   };
 
   const getDaysSinceIntimacy = () => {
     const myDate = userData?.lastIntimacy || 0;
     const partnerDate = partnerData?.lastIntimacy || 0;
     const maxDate = Math.max(myDate, partnerDate);
-    if (maxDate === 0) return "Aucun moment enregistré";
-    
+    if (maxDate === 0) return "Aucun moment";
     const days = Math.floor((Date.now() - maxDate) / (1000 * 60 * 60 * 24));
     if (days === 0) return "Aujourd'hui 🔥";
     if (days === 1) return "Hier";
@@ -723,59 +684,39 @@ export default function App() {
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error(error);
-      notify("Erreur lors de la connexion", "❌");
-    }
+    try { await signInWithPopup(auth, provider); } catch (error) { notify("Erreur lors de la connexion", "❌"); }
   };
 
   const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      notify("Votre navigateur ne supporte pas les notifications.", "❌");
-      return;
-    }
+    if (!('Notification' in window)) return notify("Non supporté.", "❌");
     try {
       const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        setNotificationsEnabled(true);
-        notify("Notifications activées avec succès !", "🔔");
-      } else {
-        notify("Permission refusée. Vérifiez vos paramètres.", "❌");
-      }
-    } catch (e) {
-      notify("Erreur lors de l'activation.", "❌");
-    }
+      if (permission === 'granted') { setNotificationsEnabled(true); notify("Notifications activées !", "🔔"); }
+      else notify("Permission refusée.", "❌");
+    } catch (e) { notify("Erreur.", "❌"); }
   };
 
   const handleSaveProfile = async () => {
     if (!user) return;
-    const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-    await updateDoc(userRef, { pseudo: profileForm.pseudo, bio: profileForm.bio, avatarUrl: profileForm.avatarUrl });
-    setIsEditingProfile(false);
-    notify("Profil mis à jour !", "👤");
+    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { pseudo: profileForm.pseudo, bio: profileForm.bio, avatarUrl: profileForm.avatarUrl });
+    setIsEditingProfile(false); notify("Profil mis à jour !", "👤");
   };
 
-  // --- NOUVEAU: SAUVEGARDER LA NOTE DU PARTENAIRE ---
   const handleSavePartnerNote = async () => {
     if (!user) return;
     await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { partnerNote });
-    notify("Note sur le duo sauvegardée !", "📝");
+    notify("Note sauvegardée !", "📝");
   };
 
   const generateNewAvatar = () => {
-    const randomSeed = Math.random().toString(36).substring(7);
-    setProfileForm({ ...profileForm, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${randomSeed}&backgroundColor=1e293b` });
+    setProfileForm({ ...profileForm, avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${Math.random().toString(36).substring(7)}&backgroundColor=1e293b` });
   };
 
   const handleLike = async (id) => {
     if (!user || !userData) return;
     const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-    const isLiked = userData.likes?.includes(id);
-    if (isLiked) {
-      await updateDoc(userRef, { likes: userData.likes.filter(l => l !== id) });
-    } else {
+    if (userData.likes?.includes(id)) await updateDoc(userRef, { likes: userData.likes.filter(l => l !== id) });
+    else {
       await updateDoc(userRef, { likes: arrayUnion(id) });
       if (partnerData?.likes?.includes(id)) {
         notify("MATCH PARFAIT !", "🔥");
@@ -786,38 +727,14 @@ export default function App() {
 
   const handleOpenEdit = (pos) => {
     const isKnownCat = displayCategories.some(c => c.id === pos.cat);
-    setNewPos({
-      name: pos.name,
-      cat: isKnownCat ? pos.cat : 'NEW',
-      newCat: isKnownCat ? '' : pos.cat,
-      desc: pos.desc,
-      v: pos.v || '',
-      diff: pos.diff,
-      spice: pos.spice,
-      shared: pos.shared !== false
-    });
-    setEditPosId(pos.id);
-    setSelectedPosition(null);
-    setShowDeleteConfirm(false);
-    setIsCreating(true);
+    setNewPos({ name: pos.name, cat: isKnownCat ? pos.cat : 'NEW', newCat: isKnownCat ? '' : pos.cat, desc: pos.desc, v: pos.v || '', diff: pos.diff, spice: pos.spice, shared: pos.shared !== false });
+    setEditPosId(pos.id); setSelectedPosition(null); setShowDeleteConfirm(false); setIsCreating(true);
   };
 
   const handleSavePosition = async () => {
-    if (!newPos.name || !newPos.desc) {
-      notify("Veuillez remplir le nom et la description.", "⚠️");
-      return;
-    }
-    
-    let finalCat = newPos.cat;
-    if (newPos.cat === 'NEW') {
-      finalCat = newPos.newCat.trim() !== '' ? newPos.newCat.trim() : 'Personnalisé';
-    }
-
-    const posData = { 
-      name: newPos.name, cat: finalCat, desc: newPos.desc, v: newPos.v, 
-      diff: newPos.diff, spice: newPos.spice, shared: newPos.shared, authorId: user.uid 
-    };
-
+    if (!newPos.name || !newPos.desc) return notify("Veuillez remplir le nom et la description.", "⚠️");
+    let finalCat = newPos.cat === 'NEW' ? (newPos.newCat.trim() !== '' ? newPos.newCat.trim() : 'Personnalisé') : newPos.cat;
+    const posData = { name: newPos.name, cat: finalCat, desc: newPos.desc, v: newPos.v, diff: newPos.diff, spice: newPos.spice, shared: newPos.shared, authorId: user.uid };
     if (editPosId) {
       await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'customPositions', editPosId), posData);
       notify("Création modifiée !", "✏️");
@@ -825,112 +742,61 @@ export default function App() {
       await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'customPositions'), { ...posData, createdAt: Date.now() });
       notify("Nouvelle position créée !", "🌟");
     }
-    
-    setIsCreating(false);
-    setEditPosId(null);
+    setIsCreating(false); setEditPosId(null);
     setNewPos({ name: '', cat: 'Face à face', newCat: '', desc: '', v: '', diff: 3, spice: 3, shared: true });
-    
     setActiveTab('explorer');
   };
 
   const handleDeletePosition = async () => {
     if(!selectedPosition || !selectedPosition.isMine) return;
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'customPositions', selectedPosition.id));
-    setSelectedPosition(null);
-    setShowDeleteConfirm(false);
-    notify("Création supprimée", "🗑️");
+    setSelectedPosition(null); setShowDeleteConfirm(false); notify("Création supprimée", "🗑️");
   };
 
   const handleLinkPartner = async () => {
-    if (!partnerCodeInput || partnerCodeInput.length !== 6) {
-      notify("Code invalide", "❌");
-      return;
-    }
-
-    if (partnerCodeInput === userData.pairCode) {
-      notify("Vous ne pouvez pas vous lier à vous-même", "⚠️");
-      return;
-    }
-
+    if (!partnerCodeInput || partnerCodeInput.length !== 6) return notify("Code invalide", "❌");
+    if (partnerCodeInput === userData.pairCode) return notify("Vous ne pouvez pas vous lier à vous-même", "⚠️");
     try {
       const q = query(collection(db, 'artifacts', appId, 'users'), where("pairCode", "==", partnerCodeInput));
       const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        notify("Ce code n'appartient à personne. Vérifiez les lettres.", "❌");
-        return;
-      }
-
-      const partnerDoc = querySnapshot.docs[0];
-      const actualPartnerUid = partnerDoc.id;
-
-      const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-      await updateDoc(userRef, { partnerUid: actualPartnerUid });
+      if (querySnapshot.empty) return notify("Ce code n'appartient à personne.", "❌");
+      await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { partnerUid: querySnapshot.docs[0].id });
       notify("Liaison réussie !", "🔗");
-      
-    } catch (error) {
-      notify("Une erreur est survenue lors de la recherche.", "❌");
-    }
+    } catch (error) { notify("Erreur de recherche.", "❌"); }
   };
 
   const handleUnlinkPartner = async () => {
     if (!user) return;
-    if (window.confirm("⚠️ Attention : Voulez-vous vraiment vous séparer de ce partenaire ? Vous ne verrez plus vos données communes.")) {
-      const userRef = doc(db, 'artifacts', appId, 'users', user.uid);
-      await updateDoc(userRef, { partnerUid: null });
-      notify("Partenaire délié avec succès", "🔓");
+    if (window.confirm("Voulez-vous vraiment vous séparer de ce partenaire ?")) {
+      await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), { partnerUid: null });
+      notify("Partenaire délié", "🔓");
     }
   };
 
-  // --- NOUVEAU : SOUMETTRE UNE IDÉE ---
   const handleSubmitIdea = async () => {
     if (!ideaText.trim() || !user) return;
     try {
-      await addDoc(collection(db, 'artifacts', appId, 'ideas'), {
-        uid: user.uid,
-        pseudo: userData?.pseudo || 'Anonyme',
-        text: ideaText.trim(),
-        status: 'pending',
-        createdAt: Date.now()
-      });
-      setIdeaText('');
-      setShowIdeaModal(false);
-      notify("Idée envoyée au créateur !", "💡");
-    } catch (e) {
-      notify("Erreur lors de l'envoi", "❌");
-    }
+      await addDoc(collection(db, 'artifacts', appId, 'ideas'), { uid: user.uid, pseudo: userData?.pseudo || 'Anonyme', text: ideaText.trim(), status: 'pending', createdAt: Date.now() });
+      setIdeaText(''); setShowIdeaModal(false); notify("Idée envoyée !", "💡");
+    } catch (e) { notify("Erreur d'envoi", "❌"); }
   };
 
   useEffect(() => {
     if (!isChatOpen || !user || !userData?.partnerUid) return;
-    
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
     const q = query(collection(db, 'artifacts', appId, 'chats', chatId, 'messages'), orderBy('createdAt', 'asc'), limit(50));
-    
-    const unsub = onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    
+    const unsub = onSnapshot(q, (snap) => setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => unsub();
   }, [isChatOpen, user, userData?.partnerUid]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isChatOpen]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isChatOpen]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !user || !userData?.partnerUid) return;
-    
     const chatId = [user.uid, userData.partnerUid].sort().join('_');
-    const msgText = newMessage.trim();
-    setNewMessage(''); 
-    
-    await addDoc(collection(db, 'artifacts', appId, 'chats', chatId, 'messages'), {
-      text: msgText,
-      uid: user.uid,
-      createdAt: Date.now()
-    });
+    const msgText = newMessage.trim(); setNewMessage(''); 
+    await addDoc(collection(db, 'artifacts', appId, 'chats', chatId, 'messages'), { text: msgText, uid: user.uid, createdAt: Date.now() });
   };
 
   const applyDiscreet = (text, type = 'desc') => discreetMode ? (type === 'title' ? "Masqué" : text.replace(/[a-zA-Z]/g, "x")) : text;
@@ -940,25 +806,14 @@ export default function App() {
     switch(type) {
       case 'truth': result = GAMES_DATA.truths[Math.floor(Math.random() * GAMES_DATA.truths.length)]; break;
       case 'dare': result = GAMES_DATA.dares[Math.floor(Math.random() * GAMES_DATA.dares.length)]; break;
-      case 'dice':
-        const action = GAMES_DATA.diceActions[Math.floor(Math.random() * GAMES_DATA.diceActions.length)];
-        const zone = GAMES_DATA.diceZones[Math.floor(Math.random() * GAMES_DATA.diceZones.length)];
-        const time = GAMES_DATA.diceDurations[Math.floor(Math.random() * GAMES_DATA.diceDurations.length)];
-        result = `${action} ➔ ${zone} \n${time}`;
-        break;
-      case 'scenario':
-        const place = GAMES_DATA.scenPlaces[Math.floor(Math.random() * GAMES_DATA.scenPlaces.length)];
-        const role = GAMES_DATA.scenRoles[Math.floor(Math.random() * GAMES_DATA.scenRoles.length)];
-        const twist = GAMES_DATA.scenTwists[Math.floor(Math.random() * GAMES_DATA.scenTwists.length)];
-        result = `Lieu : ${place}\nRôle : ${role}\nTwist : ${twist}`;
-        break;
+      case 'dice': result = `${GAMES_DATA.diceActions[Math.floor(Math.random() * GAMES_DATA.diceActions.length)]} ➔ ${GAMES_DATA.diceZones[Math.floor(Math.random() * GAMES_DATA.diceZones.length)]} \n${GAMES_DATA.diceDurations[Math.floor(Math.random() * GAMES_DATA.diceDurations.length)]}`; break;
+      case 'scenario': result = `Lieu : ${GAMES_DATA.scenPlaces[Math.floor(Math.random() * GAMES_DATA.scenPlaces.length)]}\nRôle : ${GAMES_DATA.scenRoles[Math.floor(Math.random() * GAMES_DATA.scenRoles.length)]}\nTwist : ${GAMES_DATA.scenTwists[Math.floor(Math.random() * GAMES_DATA.scenTwists.length)]}`; break;
       case 'roulette': result = GAMES_DATA.rouletteTasks[Math.floor(Math.random() * GAMES_DATA.rouletteTasks.length)]; break;
       case 'secret': result = GAMES_DATA.secretChallenges[Math.floor(Math.random() * GAMES_DATA.secretChallenges.length)]; break;
       default: break;
     }
     setGameResult(result);
   };
-
   if (loading) return (
     <div className="fixed inset-0 bg-slate-950 sm:bg-black flex items-center justify-center font-sans">
       <div className="w-full h-full sm:max-w-[430px] sm:max-h-[900px] sm:rounded-[3rem] sm:border-[8px] border-slate-900 bg-slate-950 flex flex-col items-center justify-center text-rose-500 relative overflow-hidden">
@@ -973,10 +828,7 @@ export default function App() {
         <Flame className="text-rose-500 mb-6 drop-shadow-[0_0_15px_rgba(244,63,94,0.5)]" size={64} />
         <h1 className="text-4xl font-black text-white mb-2 tracking-tighter">KAMA<span className="text-rose-500">SYNC</span></h1>
         <p className="text-slate-400 mb-10 text-sm">Connectez-vous pour synchroniser vos données sur tous vos appareils sans rien perdre.</p>
-        <button 
-          onClick={handleGoogleLogin} 
-          className="w-full max-w-xs bg-white text-slate-900 px-6 py-4 rounded-2xl font-black transition hover:bg-slate-200 shadow-xl shadow-white/10 flex items-center justify-center gap-3"
-        >
+        <button onClick={handleGoogleLogin} className="w-full max-w-xs bg-white text-slate-900 px-6 py-4 rounded-2xl font-black transition hover:bg-slate-200 shadow-xl shadow-white/10 flex items-center justify-center gap-3">
           <LogIn size={20} /> Connexion avec Google
         </button>
       </div>
@@ -987,13 +839,9 @@ export default function App() {
 
   return (
     <div className="fixed inset-0 bg-slate-950 sm:bg-black flex items-center justify-center font-sans" style={{ WebkitTapHighlightColor: 'transparent' }}>
-      
       <div className="w-full h-full sm:max-w-[430px] sm:max-h-[900px] sm:rounded-[3rem] sm:border-[8px] border-slate-900 bg-slate-950 text-slate-100 flex flex-col relative sm:shadow-2xl overflow-hidden">
         
-        <header 
-          className="px-6 border-b border-white/5 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl z-50 shrink-0"
-          style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}
-        >
+        <header className="px-6 border-b border-white/5 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl z-50 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
           <div className="flex items-center gap-2 text-rose-500 font-black text-2xl tracking-tighter">
             <Flame fill="currentColor" size={28} className="drop-shadow-[0_0_15px_rgba(244,63,94,0.5)]" /> 
             KAMA<span className="text-white">SYNC</span>
@@ -1019,178 +867,56 @@ export default function App() {
           {activeTab === 'explorer' && (
             <div className="animate-in fade-in duration-500">
               <div className="px-6 py-8">
-                <div 
-                  onClick={() => setSelectedPosition(positionDuJour)}
-                  className="bg-gradient-to-br from-rose-600 to-orange-500 rounded-3xl p-6 relative overflow-hidden cursor-pointer shadow-lg shadow-rose-900/20 active:scale-[0.98] transition-all"
-                >
+                <div onClick={() => setSelectedPosition(positionDuJour)} className="bg-gradient-to-br from-rose-600 to-orange-500 rounded-3xl p-6 relative overflow-hidden cursor-pointer shadow-lg shadow-rose-900/20 active:scale-[0.98] transition-all">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
-                  <div className="flex items-center gap-2 text-white/80 text-xs font-black uppercase tracking-widest mb-3">
-                    <Calendar size={14} /> Position du jour
-                  </div>
-                  <h2 className="text-2xl font-black text-white mb-1">
-                    {discreetMode ? "Masqué" : positionDuJour.name}
-                  </h2>
-                  <p className={`text-white/80 text-sm line-clamp-2 ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>
-                    {applyDiscreet(positionDuJour.desc)}
-                  </p>
+                  <div className="flex items-center gap-2 text-white/80 text-xs font-black uppercase tracking-widest mb-3"><Calendar size={14} /> Position du jour</div>
+                  <h2 className="text-2xl font-black text-white mb-1">{discreetMode ? "Masqué" : positionDuJour.name}</h2>
+                  <p className={`text-white/80 text-sm line-clamp-2 ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>{applyDiscreet(positionDuJour.desc)}</p>
                 </div>
               </div>
 
               <div className="px-6 mb-8 space-y-4">
                 <div className="relative group">
                   <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input 
-                    type="text" placeholder="Rechercher une position..."
-                    className="w-full bg-slate-900 border border-slate-800 rounded-3xl py-4 pl-14 pr-4 outline-none focus:border-rose-500 text-base"
-                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                  <input type="text" placeholder="Rechercher..." className="w-full bg-slate-900 border border-slate-800 rounded-3xl py-4 pl-14 pr-4 outline-none focus:border-rose-500 text-base" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
-
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                      <Filter size={12}/> Filtres & Tri
-                    </span>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2"><Filter size={12}/> Filtres & Tri</span>
                     {(searchQuery || filterSpice > 0 || filterPhysique > 0 || filterCat !== 'Toutes' || sortBy !== 'az') && (
                       <button onClick={resetFilters} className="text-[10px] font-black text-rose-500 uppercase">Réinitialiser</button>
                     )}
                   </div>
-
                   <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
                     <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-[10px] font-bold text-emerald-400 min-w-[120px] text-base">
-                      <option value="az">Trier : A-Z</option>
-                      <option value="spice">Trier : Plus épicé</option>
-                      <option value="diff">Trier : Moins physique</option>
+                      <option value="az">Trier : A-Z</option><option value="spice">Trier : Plus épicé</option><option value="diff">Trier : Moins physique</option>
                     </select>
                     <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-[10px] font-bold text-slate-300 min-w-[120px] text-base">
-                      <option value="Toutes">Catégories</option>
-                      <option value="Toutes">Toutes</option>
+                      <option value="Toutes">Catégories</option><option value="Toutes">Toutes</option>
                       {displayCategories.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
                     </select>
                   </div>
                 </div>
               </div>
 
-        {/* --- MODAL : DÉTAILS DE LA POSITION --- */}
-        {selectedPosition && (
-          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
-            <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-              <button onClick={() => { setSelectedPosition(null); setShowDeleteConfirm(false); }} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition">
-                <ArrowLeft size={20}/>
-              </button>
-              <div className="flex gap-2">
-                <button onClick={() => handleLike(selectedPosition.id)} className="bg-slate-900 p-2 rounded-full transition">
-                  {userData?.likes?.includes(selectedPosition.id) ? <Heart size={20} fill="#f43f5e" className="text-rose-500" /> : <Heart size={20} className="text-slate-400" />}
-                </button>
-              </div>
-            </header>
-
-            <div className="flex-1 overflow-y-auto p-6 custom-scroll pb-32">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-700">
-                  {selectedPosition.cat}
-                </span>
-                {selectedPosition.isMine && (
-                  <span className="bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-500/30">
-                    Ma création
-                  </span>
-                )}
-                {selectedPosition.isPartner && (
-                  <span className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/30">
-                    De {partnerData?.pseudo || 'Partenaire'}
-                  </span>
-                )}
-              </div>
-
-              <h2 className="text-3xl font-black text-white mb-6 leading-tight">
-                {discreetMode ? "Position Masquée" : selectedPosition.name}
-              </h2>
-
-              <div className="flex gap-4 mb-8">
-                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Piment</div>
-                  <div className="flex justify-center gap-1">
-                    {[...Array(5)].map((_, i) => <Flame key={i} size={16} className={i < selectedPosition.spice ? 'text-rose-500' : 'text-slate-700'} fill={i < selectedPosition.spice ? 'currentColor' : 'none'} />)}
-                  </div>
-                </div>
-                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Physique</div>
-                  <div className="flex justify-center gap-1">
-                    {[...Array(5)].map((_, i) => <Activity key={i} size={16} className={i < selectedPosition.diff ? 'text-amber-500' : 'text-slate-700'} />)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-6">
-                <h3 className="text-sm font-black text-white mb-3 uppercase tracking-widest flex items-center gap-2">
-                  <BookOpen size={16} className="text-indigo-400"/> Description
-                </h3>
-                <p className={`text-slate-300 leading-relaxed text-sm ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>
-                  {applyDiscreet(selectedPosition.desc)}
-                </p>
-              </div>
-
-              {selectedPosition.v && (
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-6">
-                  <h3 className="text-sm font-black text-white mb-3 uppercase tracking-widest flex items-center gap-2">
-                    <Sparkles size={16} className="text-amber-400"/> Variante
-                  </h3>
-                  <p className={`text-slate-400 italic leading-relaxed text-sm ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>
-                    {applyDiscreet(selectedPosition.v)}
-                  </p>
-                </div>
-              )}
-
-              {selectedPosition.isMine && (
-                <div className="flex gap-3 mt-8">
-                  <button onClick={() => handleOpenEdit(selectedPosition)} className="flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition">
-                    <Edit2 size={16}/> Modifier
-                  </button>
-                  {showDeleteConfirm ? (
-                    <button onClick={handleDeletePosition} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-500 transition animate-in zoom-in">
-                      Confirmer ?
-                    </button>
-                  ) : (
-                    <button onClick={() => setShowDeleteConfirm(true)} className="bg-slate-800 text-rose-500 p-4 rounded-xl hover:bg-rose-900/30 transition">
-                      <Trash2 size={20}/>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-
-              {/* RÉSULTATS */}
               {displayCategories.map(category => {
                 if (filterCat !== 'Toutes' && category.id !== filterCat) return null;
                 const categoryPositions = filteredPositions.filter(p => p.cat === category.id);
                 if (categoryPositions.length === 0) return null;
-
                 return (
                   <section key={category.id} className="mb-10 px-6">
-                    <h2 className={`text-lg font-black tracking-tight flex items-center gap-2 mb-4 ${category.text}`}>
-                      {category.icon} {category.id}
-                    </h2>
+                    <h2 className={`text-lg font-black tracking-tight flex items-center gap-2 mb-4 ${category.text}`}>{category.icon} {category.id}</h2>
                     <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x">
                       {categoryPositions.map(pos => {
                         const isMatch = userData?.likes?.includes(pos.id) && partnerData?.likes?.includes(pos.id);
                         return (
                           <div key={pos.id} onClick={() => setSelectedPosition(pos)} className={`relative snap-center shrink-0 w-48 bg-gradient-to-br ${category.color} border ${isMatch ? 'border-amber-500/50' : 'border-white/5'} rounded-[2rem] p-5 cursor-pointer hover:scale-[1.02] transition-all`}>
-                            
                             <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
                               {pos.isPartner && <span className="bg-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-500/30">De {partnerData?.pseudo || 'Partenaire'}</span>}
                               {pos.isMine && <span className="bg-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-indigo-500/30">Moi</span>}
-                              {pos.isMine && pos.shared === false && <span className="bg-slate-800 text-slate-400 text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-slate-700">Privé</span>}
                             </div>
-
                             <div className="flex justify-between items-start mb-4">
-                               <div className="flex flex-col gap-1">
-                                 <div className="flex gap-0.5 mt-1">
-                                   {[...Array(5)].map((_, i) => <div key={i} className={`w-1 h-1.5 rounded-full ${i < pos.spice ? 'bg-rose-500' : 'bg-white/10'}`}></div>)}
-                                 </div>
-                               </div>
+                               <div className="flex gap-0.5 mt-1">{[...Array(5)].map((_, i) => <div key={i} className={`w-1 h-1.5 rounded-full ${i < pos.spice ? 'bg-rose-500' : 'bg-white/10'}`}></div>)}</div>
                                {isMatch ? <Star size={14} fill="#f59e0b" className="text-amber-500 mt-1" /> : userData?.likes?.includes(pos.id) && <Heart size={14} fill="#f43f5e" className="text-rose-500 mt-1" />}
                             </div>
                             <h3 className="font-bold text-base text-white mb-2 pr-6">{discreetMode ? "Masqué" : pos.name}</h3>
@@ -1205,7 +931,7 @@ export default function App() {
             </div>
           )}
 
-          {/* --- TAB 2: MINI JEUX COQUINS --- */}
+          {/* --- TAB 2: JEUX --- */}
           {activeTab === 'jeux' && !activeGame && (
             <div className="animate-in fade-in duration-500 p-6 mt-4">
                <div className="text-center mb-10">
@@ -1213,160 +939,40 @@ export default function App() {
                  <h1 className="text-3xl font-black text-white mb-2">Zone de Jeux</h1>
                  <p className="text-slate-400 text-sm">Choisissez votre expérience pour ce soir.</p>
                </div>
-
                <div className="grid grid-cols-1 gap-4">
                  <button onClick={() => setActiveGame('truthOrDare')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
-                   <div>
-                    <h3 className="font-bold text-white flex items-center gap-2 mb-1"><Zap size={18} className="text-rose-500"/> Action ou Vérité</h3>
-                    <p className="text-xs text-slate-400">Des confessions intimes et des défis charnels.</p>
-                   </div>
+                   <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Zap size={18} className="text-rose-500"/> Action ou Vérité</h3><p className="text-xs text-slate-400">Des confessions intimes et des défis charnels.</p></div>
                    <ChevronRight className="text-slate-700 group-hover:text-white" />
                  </button>
                  <button onClick={() => setActiveGame('loveDice')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
-                   <div>
-                    <h3 className="font-bold text-white flex items-center gap-2 mb-1"><Dices size={18} className="text-amber-500"/> Dés de l'Amour</h3>
-                    <p className="text-xs text-slate-400">Laissez le hasard dicter vos caresses.</p>
-                   </div>
+                   <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Dices size={18} className="text-amber-500"/> Dés de l'Amour</h3><p className="text-xs text-slate-400">Laissez le hasard dicter vos caresses.</p></div>
                    <ChevronRight className="text-slate-700 group-hover:text-white" />
                  </button>
+                 <button onClick={() => setActiveGame('vault')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition shadow-[0_0_15px_rgba(245,158,11,0.1)] border-amber-500/30">
+                   <div><h3 className="font-bold text-amber-500 flex items-center gap-2 mb-1"><Lock size={18} /> Le Coffre-Fort</h3><p className="text-xs text-slate-400">Verrouillez un fantasme ou une récompense.</p></div>
+                   <ChevronRight className="text-slate-700 group-hover:text-amber-500" />
+                 </button>
                  <button onClick={() => setActiveGame('scenario')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
-                   <div>
-                    <h3 className="font-bold text-white flex items-center gap-2 mb-1"><Shuffle size={18} className="text-purple-500"/> Scénario Aléatoire</h3>
-                    <p className="text-xs text-slate-400">Lieu + Rôle + Twist inattendu.</p>
-                   </div>
+                   <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Shuffle size={18} className="text-purple-500"/> Scénario Aléatoire</h3><p className="text-xs text-slate-400">Lieu + Rôle + Twist inattendu.</p></div>
+                   <ChevronRight className="text-slate-700 group-hover:text-white" />
+                 </button>
+                 <button onClick={() => setActiveGame('blurPhoto')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
+                   <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Camera size={18} className="text-cyan-500"/> Photo Mystère</h3><p className="text-xs text-slate-400">Une photo qui se dévoile lentement.</p></div>
                    <ChevronRight className="text-slate-700 group-hover:text-white" />
                  </button>
                  <button onClick={() => setActiveGame('roulette')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
-                   <div>
-                    <h3 className="font-bold text-white flex items-center gap-2 mb-1"><Timer size={18} className="text-pink-500"/> Roulette Préliminaires</h3>
-                    <p className="text-xs text-slate-400">Des tâches sensorielles pour faire monter le désir.</p>
-                   </div>
+                   <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Timer size={18} className="text-pink-500"/> Roulette Préliminaires</h3><p className="text-xs text-slate-400">Des tâches sensorielles pour faire monter le désir.</p></div>
                    <ChevronRight className="text-slate-700 group-hover:text-white" />
                  </button>
                  <button onClick={() => setActiveGame('secretChallenge')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
-                   <div>
-                    <h3 className="font-bold text-white flex items-center gap-2 mb-1"><Gift size={18} className="text-emerald-500"/> Défi Secret (24h)</h3>
-                    <p className="text-xs text-slate-400">Un défi à accomplir en cachette.</p>
-                   </div>
+                   <div><h3 className="font-bold text-white flex items-center gap-2 mb-1"><Gift size={18} className="text-emerald-500"/> Défi Secret (24h)</h3><p className="text-xs text-slate-400">Un défi à accomplir en cachette.</p></div>
                    <ChevronRight className="text-slate-700 group-hover:text-white" />
                  </button>
                </div>
             </div>
           )}
 
-          {/* MODAL JEUX (FIX iOS Scroll) */}
-          {activeTab === 'jeux' && activeGame && (
-            <div className="absolute inset-0 bg-slate-950 z-10 animate-in slide-in-from-right duration-300 flex flex-col">
-              <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
-
-<button onClick={() => setActiveGame('blurPhoto')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
-  <div>
-   <h3 className="font-bold text-white flex items-center gap-2 mb-1"><Camera size={18} className="text-cyan-500"/> Photo Mystère</h3>
-   <p className="text-xs text-slate-400">Une photo qui se dévoile lentement avec le temps.</p>
-  </div>
-  <ChevronRight className="text-slate-700 group-hover:text-white" />
-</button>
-                <button onClick={() => { setActiveGame(null); setGameResult(null); }} className="text-slate-400 p-2 bg-slate-800 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
-                <div className="w-9"/>
-              </header>
-              
-              <div className="flex-1 overflow-y-auto p-6 pb-32 flex flex-col items-center justify-start pt-8 text-center custom-scroll">
-
-{activeGame === 'blurPhoto' && (
-  <div className="w-full max-w-md">
-    <Camera size={64} className="text-cyan-500 mx-auto mb-6" />
-    <h2 className="text-3xl font-black text-white mb-6">Photo Mystère</h2>
-    
-    {!userData?.partnerUid ? (
-      <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center">
-        <p className="text-slate-400 mb-8">Vous devez être en Duo pour envoyer une photo mystère.</p>
-      </div>
-    ) : (
-      <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center">
-        {/* L'interface d'upload de ton jeu ira ici */}
-        <p className="text-slate-400 mb-8">Interface du jeu prête à être codée...</p>
-      </div>
-    )}
-  </div>
-)}
-
-{activeGame === 'truthOrDare' && (
-  <div className="w-full max-w-md">
-    <Zap size={64} className="text-rose-500 mx-auto mb-6" />
-    {/* ... la suite de ton code truthOrDare ... */}
-
-    
-    {!userData?.partnerUid ? (
-      <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center
-                {activeGame === 'truthOrDare' && (
-                  <div className="w-full max-w-md">
-                    <Zap size={64} className="text-rose-500 mx-auto mb-6" />
-                    <h2 className="text-3xl font-black text-white mb-8">Action ou Vérité</h2>
-                    {gameResult ? (
-                      <div className="bg-rose-900/20 border border-rose-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8">
-                        <h3 className="text-xl font-bold text-white leading-relaxed">{gameResult}</h3>
-                      </div>
-                    ) : <p className="text-slate-400 mb-8">Osez révéler vos secrets ou passez à l'action.</p>}
-                    <div className="flex gap-4">
-                      <button onClick={() => triggerGameResult('truth')} className="flex-1 bg-slate-800 py-4 rounded-2xl font-black text-indigo-400 hover:bg-slate-700">VÉRITÉ</button>
-                      <button onClick={() => triggerGameResult('dare')} className="flex-1 bg-rose-600 py-4 rounded-2xl font-black text-white shadow-lg shadow-rose-900/50 hover:bg-rose-500">ACTION</button>
-                    </div>
-                  </div>
-                )}
-                {activeGame === 'loveDice' && (
-                  <div className="w-full max-w-md">
-                    <Dices size={64} className="text-amber-500 mx-auto mb-6" />
-                    <h2 className="text-3xl font-black text-white mb-8">Dés de l'Amour</h2>
-                    {gameResult ? (
-                      <div className="bg-amber-900/20 border border-amber-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8">
-                        <h3 className="text-xl font-bold text-white leading-relaxed whitespace-pre-line">{gameResult}</h3>
-                      </div>
-                    ) : <p className="text-slate-400 mb-8">Laissez les dés choisir votre prochaine étape.</p>}
-                    <button onClick={() => triggerGameResult('dice')} className="w-full bg-amber-500 py-4 rounded-2xl font-black text-slate-900 shadow-lg shadow-amber-900/50 hover:bg-amber-400">LANCER LES DÉS</button>
-                  </div>
-                )}
-                {activeGame === 'scenario' && (
-                  <div className="w-full max-w-md">
-                    <Shuffle size={64} className="text-purple-500 mx-auto mb-6" />
-                    <h2 className="text-3xl font-black text-white mb-8">Scénario Aléatoire</h2>
-                    {gameResult ? (
-                      <div className="bg-purple-900/20 border border-purple-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8">
-                        <h3 className="text-lg font-bold text-white leading-relaxed whitespace-pre-line text-left">{gameResult}</h3>
-                      </div>
-                    ) : <p className="text-slate-400 mb-8">Prêts à jouer un rôle ce soir ?</p>}
-                    <button onClick={() => triggerGameResult('scenario')} className="w-full bg-purple-600 py-4 rounded-2xl font-black text-white shadow-lg shadow-purple-900/50 hover:bg-purple-500">GÉNÉRER UN SCÉNARIO</button>
-                  </div>
-                )}
-                {activeGame === 'roulette' && (
-                  <div className="w-full max-w-md">
-                    <Timer size={64} className="text-pink-500 mx-auto mb-6" />
-                    <h2 className="text-3xl font-black text-white mb-8">Préliminaires</h2>
-                    {gameResult ? (
-                      <div className="bg-pink-900/20 border border-pink-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8">
-                        <h3 className="text-xl font-bold text-white leading-relaxed">{gameResult}</h3>
-                      </div>
-                    ) : <p className="text-slate-400 mb-8">Faites monter la température lentement.</p>}
-                    <button onClick={() => triggerGameResult('roulette')} className="w-full bg-pink-600 py-4 rounded-2xl font-black text-white shadow-lg shadow-pink-900/50 hover:bg-pink-500">TOURNER LA ROULETTE</button>
-                  </div>
-                )}
-                {activeGame === 'secretChallenge' && (
-                  <div className="w-full max-w-md">
-                    <Gift size={64} className="text-emerald-500 mx-auto mb-6" />
-                    <h2 className="text-3xl font-black text-white mb-8">Défi Secret (24h)</h2>
-                    {gameResult ? (
-                      <div className="bg-emerald-900/20 border border-emerald-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8">
-                        <h3 className="text-lg font-bold text-emerald-400 mb-4 uppercase text-[10px] tracking-widest">À réaliser d'ici demain</h3>
-                        <p className="text-xl font-bold text-white leading-relaxed">{gameResult}</p>
-                      </div>
-                    ) : <p className="text-slate-400 mb-8">Tirez un défi personnel à accomplir en cachette de votre partenaire pour le/la surprendre plus tard.</p>}
-                    <button onClick={() => triggerGameResult('secret')} className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white shadow-lg shadow-emerald-900/50 hover:bg-emerald-500">RÉVÉLER MON DÉFI</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* --- TAB 3: CONSEILS --- */}
+          {/* --- TAB 3: CONSEILS (GUIDE) --- */}
           {activeTab === 'conseils' && (
             <div className="animate-in fade-in duration-500 p-6 mt-4">
               <h1 className="text-3xl font-black text-white mb-2">Le Guide Intime.</h1>
@@ -1384,11 +990,10 @@ export default function App() {
             </div>
           )}
 
-          {/* --- TAB 4: DUO AVANCÉ --- */}
+          {/* --- TAB 4: DUO --- */}
           {activeTab === 'duo' && (
             <div className="animate-in fade-in duration-500 p-6 mt-4">
                <h1 className="text-3xl font-black text-white mb-8 text-center">Espace Duo</h1>
-               
                {!userData?.partnerUid ? (
                  <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-8 text-center mb-8">
                    <Users className="mx-auto mb-4 text-emerald-500" size={40} />
@@ -1398,30 +1003,20 @@ export default function App() {
                      <div className="text-2xl font-mono font-black text-white tracking-widest">{userData?.pairCode}</div>
                    </div>
                    <div className="flex gap-2">
-                     <input 
-                       className="flex-1 bg-slate-800 border-none rounded-xl text-center font-mono uppercase text-white outline-none px-4 text-base"
-                       placeholder="CODE PARTENAIRE"
-                       value={partnerCodeInput}
-                       onChange={(e) => setPartnerCodeInput(e.target.value.toUpperCase())}
-                       maxLength={6}
-                     />
+                     <input className="flex-1 bg-slate-800 border-none rounded-xl text-center font-mono uppercase text-white outline-none px-4 text-base" placeholder="CODE PARTENAIRE" value={partnerCodeInput} onChange={(e) => setPartnerCodeInput(e.target.value.toUpperCase())} maxLength={6} />
                      <button onClick={handleLinkPartner} className="bg-emerald-600 px-6 py-3 rounded-xl font-bold text-white text-xs hover:bg-emerald-500 transition-all">LIER</button>
                    </div>
                  </div>
                ) : (
                  <div className="space-y-6">
-                   
                    <div className="bg-slate-900 border border-slate-800 px-6 py-4 rounded-[2rem] flex items-center justify-between shadow-lg">
                      <div>
                        <span className="text-[10px] font-black text-slate-500 uppercase block mb-1">Mon Code Unique</span>
                        <div className="text-lg font-mono font-black text-white tracking-widest">{userData?.pairCode}</div>
                      </div>
-                     <div className="text-[10px] font-bold uppercase text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
-                       En Duo
-                     </div>
+                     <div className="text-[10px] font-bold uppercase text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">En Duo</div>
                    </div>
 
-                   {/* COMPTEUR INTIME & SIGNAL */}
                    <div className="grid grid-cols-2 gap-4">
                      <div className="bg-slate-900 border border-slate-800 p-5 rounded-[2rem] text-center flex flex-col justify-center items-center">
                        <CalendarHeart className="text-rose-500 mb-2" size={24} />
@@ -1429,7 +1024,6 @@ export default function App() {
                        <div className="text-lg font-black text-white mb-4">{getDaysSinceIntimacy()}</div>
                        <button onClick={logIntimacy} className="bg-slate-800 hover:bg-rose-600 text-white text-[10px] font-bold uppercase tracking-widest py-2 px-4 rounded-full transition w-full">On l'a fait !</button>
                      </div>
-                     
                      <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-5 rounded-[2rem] text-center flex flex-col justify-center items-center cursor-pointer shadow-lg shadow-indigo-900/30 active:scale-95 transition" onClick={sendSignal}>
                        <BellRing className="text-white mb-2 animate-pulse" size={28} />
                        <div className="text-white font-black text-sm leading-tight">Envoyer un signal<br/>discret</div>
@@ -1437,69 +1031,42 @@ export default function App() {
                      </div>
                    </div>
 
-                   {/* BOUTON CHAT PRIVÉ */}
-                   <div 
-                     onClick={() => setIsChatOpen(true)}
-                     className="bg-slate-900 border border-slate-800 p-4 rounded-[2rem] flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-all shadow-lg"
-                   >
+                   <div onClick={() => setIsChatOpen(true)} className="bg-slate-900 border border-slate-800 p-4 rounded-[2rem] flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-all shadow-lg">
                      <div className="flex items-center gap-4">
-                       <div className="bg-rose-500/20 p-3 rounded-full text-rose-500">
-                         <MessageSquare size={24} />
-                       </div>
-                       <div>
-                         <h3 className="font-bold text-white text-sm">Ouvrir le Chat Secret</h3>
-                         <p className="text-slate-400 text-xs">Discutez en privé avec {partnerData?.pseudo || 'votre partenaire'}</p>
-                       </div>
+                       <div className="bg-rose-500/20 p-3 rounded-full text-rose-500"><MessageSquare size={24} /></div>
+                       <div><h3 className="font-bold text-white text-sm">Ouvrir le Chat Secret</h3><p className="text-slate-400 text-xs">Discutez en privé avec {partnerData?.pseudo || 'votre partenaire'}</p></div>
                      </div>
                      <ChevronRight className="text-slate-600" />
                    </div>
 
-                   {/* HUMEUR DU JOUR AVEC PROFIL CLICABLE */}
                    <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6">
                       <h3 className="text-sm font-black text-white mb-4 uppercase tracking-widest text-center flex items-center justify-center gap-2"><HeartHandshake size={16}/> Notre Humeur</h3>
-                      
                       <div className="flex justify-between items-center mb-6">
                         <div className="text-center flex-1">
-                          <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 border-2 border-slate-700 overflow-hidden mb-2">
-                            <img src={userData?.avatarUrl} alt="Me" className="w-full h-full object-cover" />
-                          </div>
+                          <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 border-2 border-slate-700 overflow-hidden mb-2"><img src={userData?.avatarUrl} alt="Me" className="w-full h-full object-cover" /></div>
                           <div className="text-xs font-bold text-slate-300">Moi</div>
                           {userData?.mood && MOODS.find(m => m.id === userData.mood) && (
-                            <div className={`text-[10px] font-bold px-2 py-1 rounded-full mt-1 border ${MOODS.find(m => m.id === userData.mood).color}`}>
-                              {MOODS.find(m => m.id === userData.mood).icon} {MOODS.find(m => m.id === userData.mood).label}
-                            </div>
+                            <div className={`text-[10px] font-bold px-2 py-1 rounded-full mt-1 border ${MOODS.find(m => m.id === userData.mood).color}`}>{MOODS.find(m => m.id === userData.mood).icon} {MOODS.find(m => m.id === userData.mood).label}</div>
                           )}
                         </div>
-                        
                         <div className="text-slate-600 font-black px-4">VS</div>
-                        
-                        {/* BOUTON PROFIL PARTENAIRE MODIFIÉ ICI */}
                         <div className="text-center flex-1 cursor-pointer group" onClick={() => { setPartnerNote(userData?.partnerNote || ''); setShowPartnerProfile(true); }}>
                           <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 border-2 border-slate-700 overflow-hidden mb-2 group-hover:scale-105 transition duration-300">
                             <img src={partnerData?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=1e293b`} alt="Partner" className="w-full h-full object-cover" />
                           </div>
                           <div className="text-xs font-bold text-slate-300 group-hover:text-white transition">{partnerData?.pseudo || 'Partenaire'}</div>
                           {partnerData?.mood && MOODS.find(m => m.id === partnerData.mood) ? (
-                            <div className={`text-[10px] font-bold px-2 py-1 rounded-full mt-1 border ${MOODS.find(m => m.id === partnerData.mood).color}`}>
-                              {MOODS.find(m => m.id === partnerData.mood).icon} {MOODS.find(m => m.id === partnerData.mood).label}
-                            </div>
+                            <div className={`text-[10px] font-bold px-2 py-1 rounded-full mt-1 border ${MOODS.find(m => m.id === partnerData.mood).color}`}>{MOODS.find(m => m.id === partnerData.mood).icon} {MOODS.find(m => m.id === partnerData.mood).label}</div>
                           ) : (
-                            <div className="text-[10px] font-bold px-2 py-1 rounded-full mt-1 border border-slate-700 text-slate-500 bg-slate-800">
-                              Mystère...
-                            </div>
+                            <div className="text-[10px] font-bold px-2 py-1 rounded-full mt-1 border border-slate-700 text-slate-500 bg-slate-800">Mystère...</div>
                           )}
                         </div>
                       </div>
-
                       <div className="pt-4 border-t border-slate-800">
                         <div className="text-[10px] font-bold text-slate-500 uppercase text-center mb-3 tracking-widest">Changer mon humeur</div>
                         <div className="grid grid-cols-2 gap-2">
                           {MOODS.map(mood => (
-                            <button 
-                              key={mood.id} 
-                              onClick={() => updateMyMood(mood.id)}
-                              className={`p-2 rounded-xl text-xs font-bold border transition-all ${userData?.mood === mood.id ? mood.color : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                            >
+                            <button key={mood.id} onClick={() => updateMyMood(mood.id)} className={`p-2 rounded-xl text-xs font-bold border transition-all ${userData?.mood === mood.id ? mood.color : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
                               {mood.icon} {mood.label}
                             </button>
                           ))}
@@ -1511,34 +1078,21 @@ export default function App() {
                      <Star size={32} fill="currentColor" className="mx-auto text-amber-500 mb-2" />
                      <h2 className="text-xl font-black text-white">Vos Matchs Parfaits</h2>
                    </div>
-                   
                    {sharedLikes.length === 0 ? (
-                     <div className="text-center py-6 opacity-50 text-slate-400 text-sm border border-dashed border-slate-700 rounded-3xl p-6">
-                       Aucun match pour le moment.
-                     </div>
+                     <div className="text-center py-6 opacity-50 text-slate-400 text-sm border border-dashed border-slate-700 rounded-3xl p-6">Aucun match pour le moment.</div>
                    ) : (
                      <div className="grid grid-cols-1 gap-3">
                        {sharedLikes.map(pos => (
                          <div key={pos.id} onClick={() => setSelectedPosition(pos)} className="bg-slate-900 p-4 rounded-xl flex items-center justify-between cursor-pointer border border-amber-500/20">
-                           <div className="flex items-center gap-3">
-                             <Flame className="text-amber-500" size={18} />
-                             <span className="font-bold text-sm text-white">{discreetMode ? "Masqué" : pos.name}</span>
-                           </div>
+                           <div className="flex items-center gap-3"><Flame className="text-amber-500" size={18} /><span className="font-bold text-sm text-white">{discreetMode ? "Masqué" : pos.name}</span></div>
                            <ChevronRight className="text-slate-600" size={16} />
                          </div>
                        ))}
                      </div>
                    )}
-
                    <div className="pt-8 pb-4">
-                     <button 
-                       onClick={handleUnlinkPartner} 
-                       className="w-full bg-rose-600/20 border border-rose-500 text-rose-500 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all shadow-[0_0_15px_rgba(225,29,72,0.3)] flex items-center justify-center gap-2"
-                     >
-                       ⚠️ Délier mon partenaire
-                     </button>
+                     <button onClick={handleUnlinkPartner} className="w-full bg-rose-600/20 border border-rose-500 text-rose-500 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all shadow-[0_0_15px_rgba(225,29,72,0.3)] flex items-center justify-center gap-2">⚠️ Délier mon partenaire</button>
                    </div>
-
                  </div>
                )}
             </div>
@@ -1548,71 +1102,28 @@ export default function App() {
           {activeTab === 'profil' && (
             <div className="animate-in fade-in duration-500 p-6 mt-4">
               <h1 className="text-3xl font-black text-white mb-8">Mon Espace</h1>
-              
               <div className="flex flex-col items-center mb-10 relative">
-                 <div className="w-24 h-24 rounded-full border-4 border-slate-800 bg-slate-900 mb-4 overflow-hidden shadow-xl relative group cursor-pointer"
-                      onClick={() => {
-                        setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' });
-                        setIsEditingProfile(true);
-                      }}>
+                 <div className="w-24 h-24 rounded-full border-4 border-slate-800 bg-slate-900 mb-4 overflow-hidden shadow-xl relative group cursor-pointer" onClick={() => { setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' }); setIsEditingProfile(true); }}>
                    <img src={userData?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}&backgroundColor=1e293b`} alt="Avatar" className="w-full h-full object-cover" />
-                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     <Edit2 size={24} className="text-white" />
-                   </div>
+                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={24} className="text-white" /></div>
                  </div>
                  <h2 className="text-2xl font-black text-white mb-2">{userData?.pseudo || 'Anonyme'}</h2>
                  <p className="text-slate-400 text-sm text-center max-w-xs">{userData?.bio || 'Explorateur de sensations...'}</p>
-                 
                  <div className="flex flex-col w-full max-w-xs items-center gap-3 mt-6">
-                   <button 
-                     onClick={() => {
-                       setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' });
-                       setIsEditingProfile(true);
-                     }}
-                     className="flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-3 rounded-full text-xs font-black transition border border-slate-700 hover:bg-slate-700 w-full"
-                   >
-                     <Edit2 size={14} /> Modifier mon profil
-                   </button>
-
-                   <button 
-                     onClick={requestNotificationPermission}
-                     className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full text-xs font-black transition border shadow-lg w-full mt-2 ${notificationsEnabled ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/50 hover:bg-emerald-600/40' : 'bg-rose-600/20 text-rose-400 border-rose-500/50 hover:bg-rose-600/40'}`}
-                   >
-                     <BellRing size={14} /> 
-                     {notificationsEnabled ? 'Notifications Activées' : 'Autoriser les notifications'}
-                   </button>
-
-                   {/* --- BOUTON BOÎTE À IDÉES --- */}
-                   <button 
-                     onClick={() => setShowIdeaModal(true)}
-                     className="flex items-center justify-center gap-2 bg-amber-500/20 text-amber-400 px-5 py-3 rounded-full text-xs font-black transition border border-amber-500/50 hover:bg-amber-600/40 shadow-lg w-full mt-2"
-                   >
-                     <Lightbulb size={14} /> Suggérer une idée
-                   </button>
-
-                   <button 
-                     onClick={() => setShowInstallTutorial(true)}
-                     className="flex items-center justify-center gap-2 bg-indigo-600/20 text-indigo-400 px-5 py-3 rounded-full text-xs font-black transition border border-indigo-500/50 hover:bg-indigo-600/40 shadow-lg w-full"
-                   >
-                     <Smartphone size={14} /> Ajouter à l'écran d'accueil
-                   </button>
+                   <button onClick={() => { setProfileForm({ pseudo: userData?.pseudo || '', bio: userData?.bio || '', avatarUrl: userData?.avatarUrl || '' }); setIsEditingProfile(true); }} className="flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-3 rounded-full text-xs font-black transition border border-slate-700 hover:bg-slate-700 w-full"><Edit2 size={14} /> Modifier mon profil</button>
+                   <button onClick={requestNotificationPermission} className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full text-xs font-black transition border shadow-lg w-full mt-2 ${notificationsEnabled ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/50 hover:bg-emerald-600/40' : 'bg-rose-600/20 text-rose-400 border-rose-500/50 hover:bg-rose-600/40'}`}><BellRing size={14} /> {notificationsEnabled ? 'Notifications Activées' : 'Autoriser les notifications'}</button>
+                   <button onClick={() => setShowIdeaModal(true)} className="flex items-center justify-center gap-2 bg-amber-500/20 text-amber-400 px-5 py-3 rounded-full text-xs font-black transition border border-amber-500/50 hover:bg-amber-600/40 shadow-lg w-full mt-2"><Lightbulb size={14} /> Suggérer une idée</button>
+                   <button onClick={() => setShowInstallTutorial(true)} className="flex items-center justify-center gap-2 bg-indigo-600/20 text-indigo-400 px-5 py-3 rounded-full text-xs font-black transition border border-indigo-500/50 hover:bg-indigo-600/40 shadow-lg w-full"><Smartphone size={14} /> Ajouter à l'écran</button>
                  </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4 mb-8">
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
                   <Heart className="mx-auto text-rose-500 mb-2" size={24} />
                   <div className="text-2xl font-black text-white">{userData?.likes?.length || 0}</div>
                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Favoris</div>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center cursor-pointer hover:bg-slate-800 transition relative overflow-hidden group" onClick={() => {
-                  setNewPos({ name: '', cat: 'Face à face', newCat: '', desc: '', v: '', diff: 3, spice: 3, shared: true });
-                  setEditPosId(null);
-                  setIsCreating(true);
-                }}>
-                  <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Plus size={16} className="text-emerald-500"/>
-                  </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center cursor-pointer hover:bg-slate-800 transition relative overflow-hidden group" onClick={() => { setNewPos({ name: '', cat: 'Face à face', newCat: '', desc: '', v: '', diff: 3, spice: 3, shared: true }); setEditPosId(null); setIsCreating(true); }}>
+                  <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity"><Plus size={16} className="text-emerald-500"/></div>
                   <Plus className="mx-auto text-emerald-500 mb-2" size={24} />
                   <div className="text-2xl font-black text-white">{myCustomPositions.length}</div>
                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mes Créations</div>
@@ -1622,17 +1133,258 @@ export default function App() {
           )}
         </main>
 
-        {/* --- BOTTOM NAV --- */}
-        <nav 
-          className="absolute bottom-0 w-full bg-slate-950/95 backdrop-blur-2xl border-t border-slate-900 px-2 flex justify-between items-center z-40"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)', paddingTop: '0.75rem' }}
-        >
+        <nav className="absolute bottom-0 w-full bg-slate-950/95 backdrop-blur-2xl border-t border-slate-900 px-2 flex justify-between items-center z-40" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)', paddingTop: '0.75rem' }}>
           <button onClick={() => {setActiveTab('explorer'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'explorer' ? 'text-rose-500 scale-110' : 'text-slate-500'}`}><Compass size={22}/><span className="text-[8px] font-black uppercase">Catalogue</span></button>
           <button onClick={() => {setActiveTab('jeux'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'jeux' ? 'text-purple-500 scale-110' : 'text-slate-500'}`}><Gamepad2 size={24}/><span className="text-[8px] font-black uppercase">Jeux</span></button>
           <button onClick={() => {setActiveTab('conseils'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'conseils' ? 'text-indigo-400 scale-110' : 'text-slate-500'}`}><BookOpen size={22}/><span className="text-[8px] font-black uppercase">Guide</span></button>
           <button onClick={() => {setActiveTab('duo'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'duo' ? 'text-emerald-400 scale-110' : 'text-slate-500'}`}><Users size={22}/><span className="text-[8px] font-black uppercase">Duo</span></button>
           <button onClick={() => {setActiveTab('profil'); setActiveGame(null);}} className={`flex flex-col items-center gap-1 w-1/5 ${activeTab === 'profil' ? 'text-white scale-110' : 'text-slate-500'}`}><User size={22}/><span className="text-[8px] font-black uppercase">Moi</span></button>
         </nav>
+
+        {/* --- TOUTES LES MODALES GLOBALES --- */}
+
+        {/* MODAL : DÉTAILS POSITION */}
+        {selectedPosition && (
+          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
+            <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+              <button onClick={() => { setSelectedPosition(null); setShowDeleteConfirm(false); }} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+              <div className="flex gap-2">
+                <button onClick={() => handleLike(selectedPosition.id)} className="bg-slate-900 p-2 rounded-full transition">
+                  {userData?.likes?.includes(selectedPosition.id) ? <Heart size={20} fill="#f43f5e" className="text-rose-500" /> : <Heart size={20} className="text-slate-400" />}
+                </button>
+              </div>
+            </header>
+            <div className="flex-1 overflow-y-auto p-6 custom-scroll pb-32">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-700">{selectedPosition.cat}</span>
+                {selectedPosition.isMine && <span className="bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-500/30">Ma création</span>}
+                {selectedPosition.isPartner && <span className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/30">De {partnerData?.pseudo || 'Partenaire'}</span>}
+              </div>
+              <h2 className="text-3xl font-black text-white mb-6 leading-tight">{discreetMode ? "Position Masquée" : selectedPosition.name}</h2>
+              <div className="flex gap-4 mb-8">
+                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Piment</div>
+                  <div className="flex justify-center gap-1">{[...Array(5)].map((_, i) => <Flame key={i} size={16} className={i < selectedPosition.spice ? 'text-rose-500' : 'text-slate-700'} fill={i < selectedPosition.spice ? 'currentColor' : 'none'} />)}</div>
+                </div>
+                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Physique</div>
+                  <div className="flex justify-center gap-1">{[...Array(5)].map((_, i) => <Activity key={i} size={16} className={i < selectedPosition.diff ? 'text-amber-500' : 'text-slate-700'} />)}</div>
+                </div>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-6">
+                <h3 className="text-sm font-black text-white mb-3 uppercase tracking-widest flex items-center gap-2"><BookOpen size={16} className="text-indigo-400"/> Description</h3>
+                <p className={`text-slate-300 leading-relaxed text-sm ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>{applyDiscreet(selectedPosition.desc)}</p>
+              </div>
+              {selectedPosition.v && (
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-6">
+                  <h3 className="text-sm font-black text-white mb-3 uppercase tracking-widest flex items-center gap-2"><Sparkles size={16} className="text-amber-400"/> Variante</h3>
+                  <p className={`text-slate-400 italic leading-relaxed text-sm ${discreetMode ? 'blur-sm select-none opacity-50' : ''}`}>{applyDiscreet(selectedPosition.v)}</p>
+                </div>
+              )}
+              {selectedPosition.isMine && (
+                <div className="flex gap-3 mt-8">
+                  <button onClick={() => handleOpenEdit(selectedPosition)} className="flex-1 bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition"><Edit2 size={16}/> Modifier</button>
+                  {showDeleteConfirm ? (
+                    <button onClick={handleDeletePosition} className="flex-1 bg-rose-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-500 transition animate-in zoom-in">Confirmer ?</button>
+                  ) : (
+                    <button onClick={() => setShowDeleteConfirm(true)} className="bg-slate-800 text-rose-500 p-4 rounded-xl hover:bg-rose-900/30 transition"><Trash2 size={20}/></button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL : ARTICLE DU GUIDE (TIPS) - RÉPARÉ ICI */}
+        {selectedTip && (
+          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
+            <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+              <button onClick={() => setSelectedTip(null)} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+              <h2 className="font-black text-white text-xs uppercase tracking-widest">{selectedTip.cat}</h2>
+              <div className="w-9"/>
+            </header>
+            <div className="flex-1 overflow-y-auto p-6 pb-32 custom-scroll">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-6">{selectedTip.icon}</div>
+              <h2 className="text-3xl font-black text-white mb-4 leading-tight">{selectedTip.title}</h2>
+              <div className="flex items-center gap-2 text-slate-400 text-xs font-bold mb-8 uppercase tracking-widest">
+                <Clock size={14}/> Temps de lecture : {selectedTip.time}
+              </div>
+              <div className="text-slate-300 leading-relaxed space-y-4 whitespace-pre-line text-lg">
+                {selectedTip.content}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL JEUX (Tous les jeux y compris BlurPhoto et Coffre-Fort) */}
+        {activeTab === 'jeux' && activeGame && (
+          <div className="absolute inset-0 bg-slate-950 z-[150] animate-in slide-in-from-right duration-300 flex flex-col">
+            <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+              <button onClick={() => { setActiveGame(null); setGameResult(null); }} className="text-slate-400 p-2 bg-slate-800 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
+              <div className="w-9"/>
+            </header>
+            
+            <div className="flex-1 overflow-y-auto p-6 pb-32 flex flex-col items-center justify-start pt-8 text-center custom-scroll">
+              
+              {activeGame === 'vault' && (
+                <div className="w-full max-w-md">
+                  {vaultData?.keysObtained >= vaultData?.keysRequired ? <Unlock size={64} className="text-amber-500 mx-auto mb-6 animate-in zoom-in" /> : <Lock size={64} className="text-amber-500 mx-auto mb-6" />}
+                  <h2 className="text-3xl font-black text-white mb-6">Le Coffre-Fort</h2>
+                  {!userData?.partnerUid ? (
+                    <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center"><p className="text-slate-400">Vous devez être en Duo pour jouer au Coffre-Fort.</p></div>
+                  ) : !vaultData ? (
+                    <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center animate-in fade-in">
+                      <p className="text-slate-400 text-sm mb-6">Cachez un fantasme, un cadeau ou une idée coquine. Votre partenaire devra mériter ses clés pour le découvrir.</p>
+                      <textarea value={vaultSecret} onChange={(e) => setVaultSecret(e.target.value)} placeholder="Ex: Si tu ouvres ce coffre, ce soir je mets cette tenue que tu adores..." className="w-full h-28 bg-slate-950 border border-slate-800 text-white rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors resize-none mb-4" />
+                      <div className="flex items-center justify-between bg-slate-950 rounded-2xl p-4 mb-6 border border-slate-800">
+                        <span className="text-sm font-bold text-slate-300 flex items-center gap-2"><Key size={16} className="text-amber-500"/> Clés requises</span>
+                        <select value={vaultKeysReq} onChange={(e) => setVaultKeysReq(Number(e.target.value))} className="bg-slate-800 text-white outline-none rounded-lg px-3 py-1 font-bold">
+                          {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </div>
+                      <button onClick={handleCreateVault} disabled={!vaultSecret.trim()} className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-amber-900/20">Verrouiller le Secret</button>
+                    </div>
+                  ) : vaultData.creatorId === user.uid ? (
+                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] text-center">
+                      <span className="bg-amber-500/20 text-amber-400 text-[10px] font-black uppercase px-3 py-1 rounded-full border border-amber-500/30 mb-4 inline-block">Votre Coffre</span>
+                      <h3 className="text-xl font-bold text-white mb-2">Vous avez verrouillé un secret</h3>
+                      <div className="my-8 flex justify-center gap-2">{[...Array(vaultData.keysRequired)].map((_, i) => <Key key={i} size={32} className={i < vaultData.keysObtained ? "text-amber-500" : "text-slate-700"} />)}</div>
+                      <p className="text-slate-400 text-sm mb-6">Votre partenaire a <strong className="text-white">{vaultData.keysObtained} / {vaultData.keysRequired}</strong> clés.</p>
+                      {vaultData.keysObtained < vaultData.keysRequired ? <button onClick={handleGiveKey} className="w-full bg-amber-500 text-slate-900 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-amber-400 mb-4">Offrir une Clé 🔑</button> : <p className="text-emerald-400 font-bold mb-4 bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">Le coffre a été ouvert !</p>}
+                      <button onClick={handleDeleteVault} className="text-slate-500 text-xs font-bold uppercase tracking-widest hover:text-rose-500 transition">Supprimer ce coffre</button>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] text-center">
+                      <span className="bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase px-3 py-1 rounded-full border border-indigo-500/30 mb-4 inline-block">Coffre de {partnerData?.pseudo || 'Partenaire'}</span>
+                      {vaultData.keysObtained < vaultData.keysRequired ? (
+                        <>
+                          <h3 className="text-xl font-bold text-white mb-4">Un secret est verrouillé ici...</h3>
+                          <div className="my-8 flex justify-center gap-2">{[...Array(vaultData.keysRequired)].map((_, i) => <Key key={i} size={32} className={i < vaultData.keysObtained ? "text-amber-500" : "text-slate-700"} />)}</div>
+                          <p className="text-slate-400 text-sm">Il vous manque <strong className="text-amber-500">{vaultData.keysRequired - vaultData.keysObtained} clé(s)</strong>. À vous de négocier ou relever des défis pour les obtenir !</p>
+                        </>
+                      ) : (
+                        <div className="animate-in fade-in zoom-in duration-500">
+                          <h3 className="text-xl font-bold text-amber-500 mb-6 uppercase tracking-widest text-[12px]">Secret Déverrouillé !</h3>
+                          <div className="bg-slate-950 p-6 rounded-2xl border border-amber-500/30"><p className="text-white font-bold leading-relaxed text-lg whitespace-pre-line">{vaultData.secret}</p></div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeGame === 'blurPhoto' && (
+                <div className="w-full max-w-md">
+                  <Camera size={64} className="text-cyan-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-black text-white mb-6">Photo Mystère</h2>
+                  {!userData?.partnerUid ? (
+                    <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center"><p className="text-slate-400 mb-8">Vous devez être en Duo pour envoyer une photo mystère.</p></div>
+                  ) : !blurGameData ? (
+                    <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center flex flex-col items-center">
+                      <p className="text-slate-400 text-sm mb-6">Envoyez une photo éphémère qui se dévoilera très lentement sur le téléphone de votre partenaire.</p>
+                      <input type="file" accept="image/*" id="blur-upload" className="hidden" onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) { setBlurFile(file); const reader = new FileReader(); reader.onloadend = () => setBlurPreview(reader.result); reader.readAsDataURL(file); }
+                      }} />
+                      {blurPreview ? (
+                        <div className="mb-6 relative w-48 h-48 rounded-2xl overflow-hidden border border-slate-700"><img src={blurPreview} alt="Preview" className="w-full h-full object-cover" /><button onClick={() => {setBlurFile(null); setBlurPreview(null);}} className="absolute top-2 right-2 bg-slate-900 p-1.5 rounded-full text-rose-500"><X size={16}/></button></div>
+                      ) : (
+                        <label htmlFor="blur-upload" className="cursor-pointer bg-slate-800 border-2 border-dashed border-slate-700 w-full py-8 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-white transition mb-6"><Upload size={24} /> Choisir une photo</label>
+                      )}
+                      <div className="flex items-center justify-between w-full bg-slate-950 rounded-2xl p-4 mb-6 border border-slate-800">
+                        <span className="text-sm font-bold text-slate-300 flex items-center gap-2"><Clock size={16} className="text-cyan-500"/> Durée du flou</span>
+                        <select value={blurDuration} onChange={(e) => setBlurDuration(Number(e.target.value))} className="bg-slate-800 text-white outline-none rounded-lg px-2 py-1 font-bold">
+                          <option value={30}>30 sec</option><option value={60}>1 min</option><option value={300}>5 min</option><option value={1800}>30 min</option>
+                        </select>
+                      </div>
+                      <button onClick={handleUploadBlurPhoto} disabled={!blurFile || uploadingBlur} className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-cyan-900/20">{uploadingBlur ? "Envoi..." : "Envoyer la Photo"}</button>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] text-center">
+                      {blurGameData.senderId === user.uid ? (
+                        <>
+                          <span className="bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase px-3 py-1 rounded-full border border-indigo-500/30 mb-4 inline-block">Photo envoyée</span>
+                          <h3 className="text-xl font-bold text-white mb-2">Patience...</h3>
+                          <p className="text-slate-400 text-sm mb-6">Votre partenaire est en train de voir la photo se dévoiler.</p>
+                          <button onClick={handleDeleteBlurPhoto} className="w-full bg-rose-600/20 border border-rose-500 text-rose-500 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 hover:text-white transition">Annuler & Supprimer</button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="bg-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase px-3 py-1 rounded-full border border-cyan-500/30 mb-4 inline-block">Surprise de {partnerData?.pseudo}</span>
+                          <div className="relative w-full aspect-square bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 mb-6 flex items-center justify-center">
+                            <img src={blurGameData.imageUrl} alt="Mystère" className="w-full h-full object-cover transition-all duration-1000" style={{ filter: `blur(${currentBlur}px)` }} />
+                            {currentBlur > 0 && <div className="absolute inset-0 bg-black/10 flex items-center justify-center"><ImageIcon className="text-white/30 w-1/3 h-1/3" /></div>}
+                          </div>
+                          <div className="bg-slate-950 border border-slate-800 px-4 py-3 rounded-xl flex items-center justify-center gap-3">
+                            <Clock size={18} className="text-cyan-500" />
+                            <span className="text-white font-mono font-bold text-lg">{timeLeft}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeGame === 'truthOrDare' && (
+                <div className="w-full max-w-md">
+                  <Zap size={64} className="text-rose-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-black text-white mb-8">Action ou Vérité</h2>
+                  {gameResult ? (
+                    <div className="bg-rose-900/20 border border-rose-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8"><h3 className="text-xl font-bold text-white leading-relaxed">{gameResult}</h3></div>
+                  ) : <p className="text-slate-400 mb-8">Osez révéler vos secrets ou passez à l'action.</p>}
+                  <div className="flex gap-4">
+                    <button onClick={() => triggerGameResult('truth')} className="flex-1 bg-slate-800 py-4 rounded-2xl font-black text-indigo-400 hover:bg-slate-700">VÉRITÉ</button>
+                    <button onClick={() => triggerGameResult('dare')} className="flex-1 bg-rose-600 py-4 rounded-2xl font-black text-white shadow-lg shadow-rose-900/50 hover:bg-rose-500">ACTION</button>
+                  </div>
+                </div>
+              )}
+              {activeGame === 'loveDice' && (
+                <div className="w-full max-w-md">
+                  <Dices size={64} className="text-amber-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-black text-white mb-8">Dés de l'Amour</h2>
+                  {gameResult ? (
+                    <div className="bg-amber-900/20 border border-amber-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8"><h3 className="text-xl font-bold text-white leading-relaxed whitespace-pre-line">{gameResult}</h3></div>
+                  ) : <p className="text-slate-400 mb-8">Laissez les dés choisir votre prochaine étape.</p>}
+                  <button onClick={() => triggerGameResult('dice')} className="w-full bg-amber-500 py-4 rounded-2xl font-black text-slate-900 shadow-lg shadow-amber-900/50 hover:bg-amber-400">LANCER LES DÉS</button>
+                </div>
+              )}
+              {activeGame === 'scenario' && (
+                <div className="w-full max-w-md">
+                  <Shuffle size={64} className="text-purple-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-black text-white mb-8">Scénario Aléatoire</h2>
+                  {gameResult ? (
+                    <div className="bg-purple-900/20 border border-purple-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8"><h3 className="text-lg font-bold text-white leading-relaxed whitespace-pre-line text-left">{gameResult}</h3></div>
+                  ) : <p className="text-slate-400 mb-8">Prêts à jouer un rôle ce soir ?</p>}
+                  <button onClick={() => triggerGameResult('scenario')} className="w-full bg-purple-600 py-4 rounded-2xl font-black text-white shadow-lg shadow-purple-900/50 hover:bg-purple-500">GÉNÉRER UN SCÉNARIO</button>
+                </div>
+              )}
+              {activeGame === 'roulette' && (
+                <div className="w-full max-w-md">
+                  <Timer size={64} className="text-pink-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-black text-white mb-8">Préliminaires</h2>
+                  {gameResult ? (
+                    <div className="bg-pink-900/20 border border-pink-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8"><h3 className="text-xl font-bold text-white leading-relaxed">{gameResult}</h3></div>
+                  ) : <p className="text-slate-400 mb-8">Faites monter la température lentement.</p>}
+                  <button onClick={() => triggerGameResult('roulette')} className="w-full bg-pink-600 py-4 rounded-2xl font-black text-white shadow-lg shadow-pink-900/50 hover:bg-pink-500">TOURNER LA ROULETTE</button>
+                </div>
+              )}
+              {activeGame === 'secretChallenge' && (
+                <div className="w-full max-w-md">
+                  <Gift size={64} className="text-emerald-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-black text-white mb-8">Défi Secret (24h)</h2>
+                  {gameResult ? (
+                    <div className="bg-emerald-900/20 border border-emerald-500/30 p-8 rounded-[2rem] animate-in zoom-in duration-300 mb-8">
+                      <h3 className="text-lg font-bold text-emerald-400 mb-4 uppercase text-[10px] tracking-widest">À réaliser d'ici demain</h3>
+                      <p className="text-xl font-bold text-white leading-relaxed">{gameResult}</p>
+                    </div>
+                  ) : <p className="text-slate-400 mb-8">Tirez un défi personnel à accomplir en cachette de votre partenaire pour le/la surprendre plus tard.</p>}
+                  <button onClick={() => triggerGameResult('secret')} className="w-full bg-emerald-600 py-4 rounded-2xl font-black text-white shadow-lg shadow-emerald-900/50 hover:bg-emerald-500">RÉVÉLER MON DÉFI</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* MODAL IDÉES (BOÎTE À IDÉES) */}
         {showIdeaModal && (
@@ -1642,33 +1394,19 @@ export default function App() {
               <h2 className="font-black text-white tracking-tight flex items-center gap-2"><Lightbulb className="text-amber-500" size={18}/> Boîte à idées</h2>
               <div className="w-9"/>
             </header>
-            
             <div className="flex-1 p-6 space-y-6 flex flex-col justify-center">
               <div className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-3xl text-center">
                 <Lightbulb size={48} className="text-amber-500 mx-auto mb-4" />
                 <h3 className="text-white font-bold mb-2">Une idée pour améliorer l'app ?</h3>
                 <p className="text-slate-400 text-sm">Le créateur lira votre suggestion avec attention. Une nouvelle position, un nouveau jeu, une fonctionnalité...</p>
               </div>
-
-              <textarea 
-                value={ideaText}
-                onChange={(e) => setIdeaText(e.target.value)}
-                placeholder="Décrivez votre idée ici..."
-                className="w-full h-40 bg-slate-900 border border-slate-800 text-white rounded-2xl p-5 outline-none focus:border-amber-500 transition-colors resize-none"
-              />
-
-              <button 
-                onClick={handleSubmitIdea}
-                disabled={!ideaText.trim()}
-                className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-900 py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-amber-900/20"
-              >
-                Envoyer au créateur
-              </button>
+              <textarea value={ideaText} onChange={(e) => setIdeaText(e.target.value)} placeholder="Décrivez votre idée ici..." className="w-full h-40 bg-slate-900 border border-slate-800 text-white rounded-2xl p-5 outline-none focus:border-amber-500 transition-colors resize-none" />
+              <button onClick={handleSubmitIdea} disabled={!ideaText.trim()} className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-900 py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-amber-900/20">Envoyer au créateur</button>
             </div>
           </div>
         )}
 
-        {/* --- NOUVELLE MODAL : PROFIL DU PARTENAIRE ET NOTE --- */}
+        {/* MODAL PROFIL DU PARTENAIRE ET NOTE */}
         {showPartnerProfile && (
           <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
             <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
@@ -1676,36 +1414,145 @@ export default function App() {
               <h2 className="font-black text-white tracking-tight flex items-center gap-2"><Users className="text-emerald-500" size={18}/> Profil Duo</h2>
               <div className="w-9"/>
             </header>
-
             <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
               <div className="w-32 h-32 rounded-full border-4 border-slate-800 bg-slate-900 mb-6 overflow-hidden shadow-xl">
                 <img src={partnerData?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=1e293b`} alt="Partner" className="w-full h-full object-cover" />
               </div>
               <h2 className="text-3xl font-black text-white mb-2">{partnerData?.pseudo || 'Anonyme'}</h2>
               <p className="text-slate-400 text-sm text-center max-w-xs mb-8">{partnerData?.bio || 'Explorateur de sensations...'}</p>
-
               <div className="w-full bg-slate-900 border border-slate-800 rounded-3xl p-6">
                 <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2"><Edit3 size={16} className="text-emerald-500"/> Note Secrète (Duo)</h3>
                 <p className="text-xs text-slate-500 mb-4">Ajoutez une note, un fantasme ou un petit mot sur votre partenaire. Vous seul pouvez modifier cette note.</p>
-                <textarea
-                  value={partnerNote}
-                  onChange={(e) => setPartnerNote(e.target.value)}
-                  placeholder="Écrivez quelque chose sur votre duo..."
-                  className="w-full h-32 bg-slate-950 border border-slate-800 text-white rounded-2xl p-4 outline-none focus:border-emerald-500 transition-colors resize-none mb-4"
-                />
-                <button
-                  onClick={handleSavePartnerNote}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-emerald-900/20"
-                >
-                  Sauvegarder la note
-                </button>
+                <textarea value={partnerNote} onChange={(e) => setPartnerNote(e.target.value)} placeholder="Écrivez quelque chose sur votre duo..." className="w-full h-32 bg-slate-950 border border-slate-800 text-white rounded-2xl p-4 outline-none focus:border-emerald-500 transition-colors resize-none mb-4" />
+                <button onClick={handleSavePartnerNote} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-colors shadow-lg shadow-emerald-900/20">Sauvegarder la note</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* (Les autres modales restent identiques : adminPopupMessage, isChatOpen, isEditingProfile, selectedPosition, isCreating, selectedTip, showInstallTutorial) */}
-        {/* J'ai caché le code redondant des autres modales ici par souci de lisibilité, elles restent exactement les mêmes que dans ton code précédent. */}
+        {/* MODAL CHAT PRIVÉ */}
+        {isChatOpen && (
+          <div className="absolute inset-0 z-[200] bg-slate-950 flex flex-col animate-in slide-in-from-right duration-300">
+            <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-950/80 backdrop-blur-xl" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+              <button onClick={() => setIsChatOpen(false)} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-700"><img src={partnerData?.avatarUrl} alt="Partner" className="w-full h-full object-cover"/></div>
+                <h2 className="font-black text-white">{partnerData?.pseudo}</h2>
+              </div>
+              <div className="w-9"/>
+            </header>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scroll bg-slate-950 flex flex-col">
+              {messages.length === 0 ? (
+                <div className="text-center text-slate-500 text-sm my-auto opacity-50">Aucun message. Lancez la conversation...</div>
+              ) : (
+                messages.map(m => {
+                  const isMe = m.uid === user?.uid;
+                  return (
+                    <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[75%] rounded-2xl px-5 py-3 text-sm ${isMe ? 'bg-rose-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none'}`}>
+                        {m.text}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-900 bg-slate-950" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
+              <div className="flex gap-2 relative">
+                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Message secret..." className="flex-1 bg-slate-900 border border-slate-800 rounded-full pl-5 pr-12 py-3 text-white outline-none focus:border-rose-500 transition" />
+                <button type="submit" disabled={!newMessage.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-rose-600 text-white rounded-full flex items-center justify-center disabled:opacity-50 disabled:bg-slate-700">
+                  <Send size={14} className="-ml-0.5" />
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* MODAL CRÉATION / ÉDITION DE POSITION */}
+        {isCreating && (
+          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
+            <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+              <button onClick={() => { setIsCreating(false); setEditPosId(null); }} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+              <h2 className="font-black text-white">{editPosId ? 'Modifier' : 'Nouvelle Création'}</h2>
+              <div className="w-9"/>
+            </header>
+            <div className="flex-1 overflow-y-auto p-6 pb-32 custom-scroll space-y-6">
+              <div><label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Nom de la position</label><input type="text" value={newPos.name} onChange={(e) => setNewPos({...newPos, name: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500" placeholder="Ex: Le grand saut" /></div>
+              <div><label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Catégorie</label><select value={newPos.cat} onChange={(e) => setNewPos({...newPos, cat: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500">{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}<option value="NEW">+ Nouvelle catégorie</option></select></div>
+              {newPos.cat === 'NEW' && (<div><label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Nom de la nouvelle catégorie</label><input type="text" value={newPos.newCat} onChange={(e) => setNewPos({...newPos, newCat: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500" placeholder="Ex: Dans la voiture" /></div>)}
+              <div><label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Description</label><textarea value={newPos.desc} onChange={(e) => setNewPos({...newPos, desc: e.target.value})} className="w-full h-24 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 resize-none" placeholder="Comment la réaliser..." /></div>
+              <div><label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Variante (Optionnel)</label><textarea value={newPos.v} onChange={(e) => setNewPos({...newPos, v: e.target.value})} className="w-full h-16 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500 resize-none" placeholder="Pour pimenter encore plus..." /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <div className="text-[10px] font-black text-slate-500 uppercase mb-2">Piment (1-5)</div>
+                  <input type="range" min="1" max="5" value={newPos.spice} onChange={(e) => setNewPos({...newPos, spice: parseInt(e.target.value)})} className="w-full accent-rose-500" />
+                  <div className="flex justify-center gap-1 mt-2">{[...Array(5)].map((_, i) => <Flame key={i} size={14} className={i < newPos.spice ? 'text-rose-500' : 'text-slate-700'} fill={i < newPos.spice ? 'currentColor' : 'none'} />)}</div>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <div className="text-[10px] font-black text-slate-500 uppercase mb-2">Physique (1-5)</div>
+                  <input type="range" min="1" max="5" value={newPos.diff} onChange={(e) => setNewPos({...newPos, diff: parseInt(e.target.value)})} className="w-full accent-amber-500" />
+                  <div className="flex justify-center gap-1 mt-2">{[...Array(5)].map((_, i) => <Activity key={i} size={14} className={i < newPos.diff ? 'text-amber-500' : 'text-slate-700'} />)}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 p-4 rounded-xl cursor-pointer" onClick={() => setNewPos({...newPos, shared: !newPos.shared})}>
+                <div className={`w-10 h-6 rounded-full transition-colors relative ${newPos.shared ? 'bg-emerald-500' : 'bg-slate-700'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${newPos.shared ? 'translate-x-5' : 'translate-x-1'}`}></div>
+                </div>
+                <div className="flex-1"><div className="text-sm font-bold text-white">Partager en Duo</div><div className="text-xs text-slate-500">Votre partenaire verra cette position</div></div>
+              </div>
+              <button onClick={handleSavePosition} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-emerald-500 transition mt-4">{editPosId ? 'Enregistrer' : 'Créer'}</button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL ÉDITION PROFIL */}
+        {isEditingProfile && (
+          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom duration-300">
+            <header className="px-6 flex items-center justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+              <button onClick={() => setIsEditingProfile(false)} className="text-slate-400 bg-slate-900 p-2 rounded-full hover:text-white transition"><ArrowLeft size={20}/></button>
+              <h2 className="font-black text-white">Éditer Profil</h2>
+              <div className="w-9"/>
+            </header>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full border-4 border-slate-800 bg-slate-900 mb-4 overflow-hidden"><img src={profileForm.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /></div>
+                <button onClick={generateNewAvatar} className="flex items-center gap-2 text-xs font-bold text-indigo-400 bg-indigo-500/10 px-4 py-2 rounded-full border border-indigo-500/20 hover:bg-indigo-500/20"><RefreshCw size={14}/> Avatar Aléatoire</button>
+              </div>
+              <div><label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Pseudo</label><input type="text" value={profileForm.pseudo} onChange={(e) => setProfileForm({...profileForm, pseudo: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500" /></div>
+              <div><label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Bio</label><textarea value={profileForm.bio} onChange={(e) => setProfileForm({...profileForm, bio: e.target.value})} className="w-full h-24 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 resize-none" /></div>
+              <button onClick={handleSaveProfile} className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-indigo-500 transition mt-4">Sauvegarder</button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL INSTALLATION PWA */}
+        {showInstallTutorial && (
+          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300">
+            <Smartphone size={64} className="text-indigo-500 mb-6" />
+            <h2 className="text-2xl font-black text-white mb-4">Installer l'App</h2>
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-left space-y-4 mb-8 w-full max-w-sm">
+              <p className="text-sm text-slate-300"><strong>Sur iOS (Safari) :</strong><br/>1. Touchez l'icône Partager (carré avec flèche).<br/>2. Faites défiler et touchez "Sur l'écran d'accueil".</p>
+              <div className="w-full h-px bg-slate-800"></div>
+              <p className="text-sm text-slate-300"><strong>Sur Android (Chrome) :</strong><br/>1. Touchez les 3 points en haut à droite.<br/>2. Touchez "Ajouter à l'écran d'accueil".</p>
+            </div>
+            <button onClick={() => setShowInstallTutorial(false)} className="bg-slate-800 text-white px-8 py-4 rounded-xl font-black">Fermer</button>
+          </div>
+        )}
+
+        {/* POPUP ADMIN */}
+        {adminPopupMessage && (
+          <div className="absolute inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in">
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-500 to-amber-500"></div>
+              <AlertTriangle className="mx-auto text-rose-500 mb-4" size={48} />
+              <h2 className="text-xl font-black text-white mb-2 uppercase tracking-widest">Message de l'Admin</h2>
+              <p className="text-slate-300 mb-8 leading-relaxed">{adminPopupMessage}</p>
+              <button onClick={() => setAdminPopupMessage(null)} className="w-full bg-slate-800 hover:bg-slate-700 text-white py-4 rounded-xl font-black uppercase transition-colors border border-slate-700">J'ai compris</button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
