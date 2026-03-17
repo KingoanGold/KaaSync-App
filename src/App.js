@@ -2,6 +2,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+
 import { 
   getFirestore, doc, setDoc, collection, 
   onSnapshot, updateDoc, arrayUnion, addDoc, deleteDoc,
@@ -18,6 +21,21 @@ import {
   CalendarHeart, Send, LogIn, MessageSquare, Smartphone,
   AlertTriangle, Lightbulb 
 } from 'lucide-react';
+
+// Ajoute à la liste existante : Camera, Upload, Clock, X, ImageIcon
+import { 
+  /* ... tes icônes actuelles ... */
+  Camera, Upload, Clock, X, Image as ImageIcon
+} from 'lucide-react';
+
+  // --- ÉTATS POUR LE JEU PHOTO MYSTÈRE ---
+  const [blurGameData, setBlurGameData] = useState(null);
+  const [blurFile, setBlurFile] = useState(null);
+  const [blurPreview, setBlurPreview] = useState(null);
+  const [blurDuration, setBlurDuration] = useState(60); // En secondes (défaut: 1 min)
+  const [uploadingBlur, setUploadingBlur] = useState(false);
+  const [currentBlur, setCurrentBlur] = useState(20); // 20px de flou initial
+  const [timeLeft, setTimeLeft] = useState("");
 
 // --- CONFIGURATION FIREBASE ULTRA-SÉCURISÉE (ANTI-CRASH) ---
 let firebaseConfig;
@@ -42,6 +60,7 @@ try {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'kamasync-ultra-v4';
 
 // --- CATÉGORIES DE BASE ---
@@ -522,6 +541,107 @@ export default function App() {
 
     return () => { unsubUser(); unsubPartner(); unsubPartnerCustom(); unsubGlobalChat(); };
   }, [user]);
+
+  // Écouter l'état du jeu "Photo Mystère" en temps réel
+  useEffect(() => {
+    if (!user || !userData?.partnerUid) return;
+    const chatId = [user.uid, userData.partnerUid].sort().join('_');
+    const gameRef = doc(db, 'artifacts', appId, 'games', chatId);
+    
+    const unsub = onSnapshot(gameRef, (snap) => {
+      if (snap.exists() && snap.data().blurGame) {
+        setBlurGameData(snap.data().blurGame);
+      } else {
+        setBlurGameData(null);
+      }
+    });
+    return () => unsub();
+  }, [user, userData?.partnerUid]);
+
+  // Calculer le dé-floutage progressif pour le receveur
+  useEffect(() => {
+    if (!blurGameData || blurGameData.senderId === user?.uid) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - blurGameData.startTime;
+      const progress = Math.min(1, Math.max(0, elapsed / blurGameData.durationMs));
+      
+      // Le flou passe de 20px à 0px en fonction de la progression
+      const maxBlur = 20; 
+      setCurrentBlur(maxBlur - (progress * maxBlur));
+
+      const remaining = Math.max(0, blurGameData.durationMs - elapsed);
+      if (remaining === 0) {
+        setTimeLeft("Photo totalement dévoilée ! 🔥");
+      } else {
+         const m = Math.floor(remaining / 60000);
+         const s = Math.floor((remaining % 60000) / 1000);
+         setTimeLeft(`${m}m ${s}s restants`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [blurGameData, user]);
+
+  // Fonction pour envoyer la photo
+  const handleUploadBlurPhoto = async () => {
+    if (!blurFile || !user || !userData?.partnerUid) return;
+    setUploadingBlur(true);
+    
+    try {
+      const chatId = [user.uid, userData.partnerUid].sort().join('_');
+      const fileName = `blurPhotos/${chatId}_${Date.now()}`;
+      const storageRef = ref(storage, fileName);
+      
+      await uploadBytes(storageRef, blurFile);
+      const url = await getDownloadURL(storageRef);
+
+      await setDoc(doc(db, 'artifacts', appId, 'games', chatId), {
+        blurGame: {
+          senderId: user.uid,
+          imageUrl: url,
+          imagePath: fileName,
+          startTime: Date.now(),
+          durationMs: blurDuration * 1000, // Conversion en millisecondes
+        }
+      }, { merge: true });
+
+      setBlurFile(null);
+      setBlurPreview(null);
+      notify("Photo mystère envoyée !", "📸");
+      
+      // Notification au partenaire
+      updateDoc(doc(db, 'artifacts', appId, 'users', userData.partnerUid), { 
+        pingToPartner: Date.now() 
+      });
+      
+    } catch (e) {
+      notify("Erreur lors de l'envoi.", "❌");
+    }
+    setUploadingBlur(false);
+  };
+
+  // Fonction pour annuler/supprimer la photo en cours
+  const handleDeleteBlurPhoto = async () => {
+    if (!blurGameData || !user || !userData?.partnerUid) return;
+    try {
+      const chatId = [user.uid, userData.partnerUid].sort().join('_');
+      // On supprime la photo du Storage si elle existe
+      if (blurGameData.imagePath) {
+        await deleteObject(ref(storage, blurGameData.imagePath)).catch(e=>console.log(e));
+      }
+      // On efface les données du jeu
+      await updateDoc(doc(db, 'artifacts', appId, 'games', chatId), {
+        blurGame: deleteDoc() // Nécessite d'importer deleteField() de firebase/firestore si c'est un champ, ou de mettre null
+      });
+      setBlurGameData(null);
+      notify("Photo supprimée.", "🗑️");
+    } catch (e) {
+       // Alternative si deleteField n'est pas importé :
+       await setDoc(doc(db, 'artifacts', appId, 'games', chatId), { blurGame: null }, { merge: true });
+       setBlurGameData(null);
+    }
+  };
 
   const displayCategories = useMemo(() => {
     const baseCats = [...CATEGORIES];
@@ -1138,11 +1258,27 @@ export default function App() {
           {activeTab === 'jeux' && activeGame && (
             <div className="absolute inset-0 bg-slate-950 z-10 animate-in slide-in-from-right duration-300 flex flex-col">
               <header className="px-6 flex items-center justify-between border-b border-white/5 bg-slate-900/50" style={{ paddingTop: 'max(env(safe-area-inset-top), 1.25rem)', paddingBottom: '1.25rem' }}>
+
+<button onClick={() => setActiveGame('blurPhoto')} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group hover:bg-slate-800 transition">
+  <div>
+   <h3 className="font-bold text-white flex items-center gap-2 mb-1"><Camera size={18} className="text-cyan-500"/> Photo Mystère</h3>
+   <p className="text-xs text-slate-400">Une photo qui se dévoile lentement avec le temps.</p>
+  </div>
+  <ChevronRight className="text-slate-700 group-hover:text-white" />
+</button>
                 <button onClick={() => { setActiveGame(null); setGameResult(null); }} className="text-slate-400 p-2 bg-slate-800 rounded-full hover:text-white"><ArrowLeft size={20}/></button>
                 <div className="w-9"/>
               </header>
               
               <div className="flex-1 overflow-y-auto p-6 pb-32 flex flex-col items-center justify-start pt-8 text-center custom-scroll">
+
+{activeGame === 'blurPhoto' && (
+  <div className="w-full max-w-md">
+    <Camera size={64} className="text-cyan-500 mx-auto mb-6" />
+    <h2 className="text-3xl font-black text-white mb-6">Photo Mystère</h2>
+    
+    {!userData?.partnerUid ? (
+      <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center
                 {activeGame === 'truthOrDare' && (
                   <div className="w-full max-w-md">
                     <Zap size={64} className="text-rose-500 mx-auto mb-6" />
