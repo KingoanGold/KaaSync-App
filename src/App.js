@@ -1278,6 +1278,25 @@ export default function App() {
     <h2 className="text-3xl font-black text-white mb-6">Photo Mystère</h2>
     
     {!userData?.partnerUid ? (
+      <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center">
+        <p className="text-slate-400 mb-8">Vous devez être en Duo pour envoyer une photo mystère.</p>
+      </div>
+    ) : (
+      <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center">
+        {/* L'interface d'upload de ton jeu ira ici */}
+        <p className="text-slate-400 mb-8">Interface du jeu prête à être codée...</p>
+      </div>
+    )}
+  </div>
+)}
+
+{activeGame === 'truthOrDare' && (
+  <div className="w-full max-w-md">
+    <Zap size={64} className="text-rose-500 mx-auto mb-6" />
+    {/* ... la suite de ton code truthOrDare ... */}
+
+    
+    {!userData?.partnerUid ? (
       <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center
                 {activeGame === 'truthOrDare' && (
                   <div className="w-full max-w-md">
